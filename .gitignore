@@ -1,0 +1,90 @@
+# LiteFinPad .gitignore
+
+# ====================
+# Python
+# ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ====================
+# Virtual Environments
+# ====================
+venv/
+ENV/
+env/
+.venv
+
+# ====================
+# PyInstaller Build Artifacts
+# ====================
+build/
+dist/
+*.spec
+!LiteFinPad_v*.spec
+
+# ====================
+# User Data (Keep Private)
+# ====================
+data_*/
+*.json
+!requirements.txt
+
+# ====================
+# Logs and Errors
+# ====================
+logs/
+*.log
+*.txt
+!version.txt
+!requirements.txt
+
+# ====================
+# Backups (Too Large for Git)
+# ====================
+backup_*/
+*.backup
+
+# ====================
+# IDE and Editor
+# ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ====================
+# Windows
+# ====================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ====================
+# Temporary Files
+# ====================
+*.tmp
+*.temp
+~$*
+
+# ====================
+# Documentation (Archive)
+# ====================
+archive_old_docs/
+archive_old_specs/
+
+# ====================
+# Personal Learning & Development Notes
+# ====================
+_personal/
+AI_MEMORY.md
+
+# Note: BEGINNER_THOUGHTS.md is intentionally PUBLIC
+# It's kept in the main folder to share the development journey
+
