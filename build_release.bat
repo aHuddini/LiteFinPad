@@ -114,8 +114,30 @@ echo [INFO] This may take 2-3 minutes...
 echo [INFO] Production build - fully optimized
 echo.
 
+REM Auto-detect the current .spec file (excludes archived specs)
+set "SPEC_FILE="
+for %%F in (LiteFinPad_v*.spec) do (
+    if defined SPEC_FILE (
+        echo [ERROR] Multiple .spec files found in root directory!
+        echo [ERROR] Please keep only one .spec file in the root.
+        pause
+        exit /b 1
+    )
+    set "SPEC_FILE=%%F"
+)
+
+if not defined SPEC_FILE (
+    echo [ERROR] No .spec file found in root directory!
+    echo [ERROR] Expected file: LiteFinPad_v*.spec
+    pause
+    exit /b 1
+)
+
+echo [INFO] Using spec file: %SPEC_FILE%
+echo.
+
 REM Use the pre-configured .spec file (includes all modules: analytics, data_manager, validation, widgets)
-py -3.14 -m PyInstaller LiteFinPad_v3.4.spec
+py -3.14 -m PyInstaller %SPEC_FILE%
 
 if errorlevel 1 (
     echo.
