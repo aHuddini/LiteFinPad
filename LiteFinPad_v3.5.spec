@@ -41,7 +41,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='LiteFinPad_v3.4',
+    name='LiteFinPad_v3.5',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -61,5 +61,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='LiteFinPad_v3.4',
+    name='LiteFinPad_v3.5',
 )

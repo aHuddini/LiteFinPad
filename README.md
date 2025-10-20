@@ -1,4 +1,4 @@
-# 💰 LiteFinPad v3.4
+# 💰 LiteFinPad v3.5
 
 <div align="center">
 
@@ -22,6 +22,31 @@
 - 📊 Monthly budget monitoring  
 - 🚀 Quick expense logging without opening apps
 - 🔒 Users who want complete data privacy (no cloud, no accounts)
+
+---
+
+## 🆕 What's New in v3.5
+
+### Major Architectural Refactoring (October 2025)
+
+**New Features:**
+- 🎨 **Centralized Configuration**: New `config.py` module with ~50+ constants for easier theming and customization
+- 🎯 **Improved Context Menu**: "Delete Expense" moved to bottom with red color and bold font for visual safety
+
+**Code Quality Improvements:**
+- 📦 **5 New Modules**: Analytics, Data Manager, Validation, NumberPad Widget, Config
+- 📉 **22.5% Code Reduction**: `main.py` reduced from 1,062 to 823 lines
+- 🔧 **Better Maintainability**: Separation of concerns with modular architecture
+- 🚀 **Foundation for Future**: Theme system, dark mode, and customization support
+
+**Technical:**
+- Added ~633 lines of new modular code
+- Improved testability with static methods
+- Reduced code duplication through structured validation
+- First reusable UI component (NumberPad Widget)
+
+**Known Issues:**
+- None reported for v3.5
 
 ---
 
