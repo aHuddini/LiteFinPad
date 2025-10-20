@@ -11,7 +11,7 @@
 
 **`archive_old_specs/`**
 - Contains: 8 old PyInstaller spec files (v2.8 through v3.3)
-- Kept in main folder: `LiteFinPad_v3.4.spec` (current version)
+- Kept in main folder: `LiteFinPad_v3.5.spec` (current version)
 - Status: ✅ Excluded from GitHub (in .gitignore)
 
 **`_personal/`**

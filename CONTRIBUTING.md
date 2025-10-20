@@ -79,6 +79,229 @@ You should see the LiteFinPad icon appear in your system tray.
 
 ---
 
+## 🤖 AI-Assisted Development Workflow
+
+**LiteFinPad is developed using "vibe-coding" with AI assistance (Claude Sonnet, GPT-Codex).**
+
+### How It Works
+
+The development workflow is fundamentally different from traditional programming:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. DISCUSS        User describes feature or change          │
+│                   (5-15 min - strategic planning)            │
+├─────────────────────────────────────────────────────────────┤
+│ 2. PLAN           AI proposes implementation approach        │
+│                   (included in discussion time)              │
+├─────────────────────────────────────────────────────────────┤
+│ 3. IMPLEMENT      AI makes code changes                      │
+│                   (10-40 min - AI handles typing/files)      │
+├─────────────────────────────────────────────────────────────┤
+│ 4. REVIEW         User reviews changes, asks questions       │
+│                   (15-30 min - understand & verify)          │
+├─────────────────────────────────────────────────────────────┤
+│ 5. TEST           User builds and tests application          │
+│                   (20-40 min - quality assurance)            │
+├─────────────────────────────────────────────────────────────┤
+│ 6. ITERATE        Debug if needed, repeat cycle              │
+│                   (0-30 min - varies by complexity)          │
+└─────────────────────────────────────────────────────────────┘
+
+Total Time: 50-155 min (50-70% faster than traditional development)
+```
+
+---
+
+### Realistic Time Expectations
+
+When contributing with AI assistance, expect these timeframes:
+
+#### Simple Features (⭐⭐)
+**Total: 30-45 min**
+- AI Implementation: 10-15 min
+- Your Review: 5-10 min
+- Your Testing: 15-20 min
+
+**Examples:**
+- Fix button labels
+- Adjust colors or styling
+- Update calculation formula
+- Add keyboard shortcut
+
+---
+
+#### Medium Features (⭐⭐⭐)
+**Total: 60-90 min**
+- AI Implementation: 20-30 min
+- Your Review: 15-20 min
+- Your Testing: 25-40 min
+
+**Examples:**
+- Add new dialog with validation
+- Implement date range filter
+- Create export format option
+- Add status bar feedback
+
+---
+
+#### Complex Features (⭐⭐⭐⭐)
+**Total: 90-150 min**
+- AI Implementation: 30-50 min
+- Your Review: 20-30 min
+- Your Testing: 40-70 min
+
+**Examples:**
+- Extract code to new module
+- Implement undo functionality
+- Add bulk action system
+- Create settings dialog
+
+---
+
+### Why Times Are Faster
+
+**AI Handles**:
+- ✅ Typing code (no manual typing)
+- ✅ File management (creating, editing multiple files)
+- ✅ Pattern following (consistent with project style)
+- ✅ Refactoring (automatic code restructuring)
+- ✅ Documentation updates (keeping docs in sync)
+
+**You Handle**:
+- 🎯 Strategic decisions (what to build, how to structure)
+- 🔍 Code review (verify correctness, readability)
+- 🧪 Testing (ensure features work as expected)
+- ✅ Approval (accept or request changes)
+
+---
+
+### Your Role in AI-Assisted Development
+
+#### As Strategic Lead (35% of your time)
+- Define what features you want
+- Set priorities and scope
+- Make architectural decisions
+- Approve or reject proposals
+
+#### As Quality Gatekeeper (65% of your time)
+- **Review Code** (~35%): Read changes, understand logic, verify patterns
+- **Test Thoroughly** (~35%): Build, run, test features, check edge cases
+- **Iterate** (~15%): Report bugs, request adjustments, retest
+
+---
+
+### Typical Development Session
+
+#### Example: Adding Delete Confirmation Dialog
+
+**Traditional Development (~2.7 hours):**
+```
+Plan feature:              30 min
+Write dialog code:         60 min
+Add validation:            20 min
+Integrate with table:      30 min
+Test thoroughly:           20 min
+──────────────────────────────
+Total:                     160 min
+```
+
+**AI-Assisted Development (~45 min):**
+```
+Discuss feature:           5 min   ← You explain what you want
+AI implements:            15 min   ← AI writes all code
+Review changes:           10 min   ← You read & understand
+Build & test:             15 min   ← You verify it works
+──────────────────────────────
+Total:                    45 min
+```
+
+**Time Saved: 115 min (72% reduction)**
+
+---
+
+### Real-World Timing Examples
+
+#### Morning Session (2 hours available)
+```
+✅ Extract analytics module (60 min)
+✅ Add delete confirmation (45 min)
+✅ Update documentation (15 min)
+───────────────────────────────────
+Result: 2 features + docs completed
+```
+
+#### Evening Session (1 hour available)
+```
+✅ Refine UI colors (30 min)
+✅ Add keyboard shortcuts (25 min)
+✅ Test changes (5 min buffer)
+───────────────────────────────────
+Result: 2 polish tasks completed
+```
+
+---
+
+### Time Estimate Format
+
+In documentation, you'll see estimates like:
+
+```
+⭐⭐ Easy | 40 min | AI: 15 min, User: 25 min
+```
+
+**This means:**
+- **Complexity**: Easy (2 stars out of 5)
+- **Total Time**: 40 minutes from idea to tested feature
+- **AI Work**: 15 minutes (implementation, files, typing)
+- **Your Work**: 25 minutes (review 10 min + test 15 min)
+
+---
+
+### Contributing Best Practices
+
+#### Before Starting
+- [ ] Understand the feature you want
+- [ ] Check existing code for similar patterns
+- [ ] Review relevant documentation
+- [ ] Ensure you have 30-90 min available for full cycle
+
+#### During Development
+- [ ] Ask clarifying questions if AI's approach unclear
+- [ ] Review code changes thoroughly before testing
+- [ ] Test both happy path and edge cases
+- [ ] Report bugs clearly with reproduction steps
+
+#### After Implementation
+- [ ] Verify all features work as expected
+- [ ] Check that existing features still work (no regressions)
+- [ ] Approve documentation updates
+- [ ] Create backup if changes are significant
+
+---
+
+### When to Expect Iterations
+
+**Low Risk (usually works first try):**
+- Simple UI changes
+- Adding fields to dialogs
+- Updating text/labels
+- Color/styling adjustments
+
+**Medium Risk (1-2 iterations typical):**
+- New dialogs with validation
+- Keyboard shortcut systems
+- Analytics calculations
+- Export functionality
+
+**High Risk (2-3 iterations likely):**
+- Window management
+- Focus handling
+- Build system changes
+- Module extraction/refactoring
+
+---
+
 ## 🔨 Building from Source
 
 LiteFinPad uses a dual-script build system with automatic version management.

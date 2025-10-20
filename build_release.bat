@@ -114,58 +114,8 @@ echo [INFO] This may take 2-3 minutes...
 echo [INFO] Production build - fully optimized
 echo.
 
-py -3.14 -m PyInstaller ^
-    --onedir ^
-    --windowed ^
-    --name LiteFinPad_v%CURRENT_VERSION% ^
-    --icon=icon.ico ^
-    --add-data "icon.ico;." ^
-    --add-data "gui.py;." ^
-    --add-data "expense_table.py;." ^
-    --add-data "export_data.py;." ^
-    --add-data "import_data.py;." ^
-    --add-data "error_logger.py;." ^
-    --add-data "window_animation.py;." ^
-    --add-data "tray_icon.py;." ^
-    --collect-submodules=xlsxwriter ^
-    --collect-submodules=fpdf ^
-    --hidden-import=xlsxwriter ^
-    --hidden-import=xlsxwriter.workbook ^
-    --hidden-import=xlsxwriter.worksheet ^
-    --hidden-import=xlsxwriter.format ^
-    --hidden-import=fpdf ^
-    --hidden-import=fpdf.fpdf ^
-    --hidden-import=encodings ^
-    --hidden-import=encodings.utf_8 ^
-    --hidden-import=encodings.ascii ^
-    --hidden-import=encodings.latin_1 ^
-    --hidden-import=encodings.cp1252 ^
-    --hidden-import=html ^
-    --hidden-import=html.parser ^
-    --hidden-import=html.entities ^
-    --hidden-import=urllib ^
-    --hidden-import=urllib.parse ^
-    --hidden-import=urllib.request ^
-    --hidden-import=base64 ^
-    --hidden-import=zlib ^
-    --hidden-import=re ^
-    --hidden-import=math ^
-    --hidden-import=datetime ^
-    --hidden-import=json ^
-    --collect-all=tkinter ^
-    --exclude-module=tkinter.test ^
-    --exclude-module=test ^
-    --exclude-module=setuptools ^
-    --exclude-module=setuptools._vendor ^
-    --exclude-module=pkg_resources ^
-    --exclude-module=PIL ^
-    --exclude-module=Pillow ^
-    --exclude-module=ssl ^
-    --exclude-module=_ssl ^
-    --distpath "dist" ^
-    --workpath "build" ^
-    --specpath "." ^
-    main.py
+REM Use the pre-configured .spec file (includes all modules: analytics, data_manager, validation, widgets)
+py -3.14 -m PyInstaller LiteFinPad_v3.4.spec
 
 if errorlevel 1 (
     echo.

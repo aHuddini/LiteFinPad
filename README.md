@@ -4,7 +4,7 @@
 
 **A lightweight, offline-first Windows expense tracker with modern UI and powerful features**
 
-![Version](https://img.shields.io/badge/version-3.4-blue.svg)
+![Version](https://img.shields.io/badge/version-3.5-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.14-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)

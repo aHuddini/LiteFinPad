@@ -450,6 +450,245 @@ A: No! Only increment when you want a new version number. Use `build_dev.bat` (n
 
 ---
 
+## ⏱️ Development Session Timing (AI-Assisted)
+
+### Understanding AI-Assisted Development Speed
+
+LiteFinPad uses "vibe-coding" with AI assistance, which dramatically changes development timings compared to traditional workflows.
+
+### Typical Build & Test Cycles
+
+#### Development Build Cycle
+```
+Step 1: Make code changes
+  └─ AI Implementation: 10-30 min (depending on complexity)
+
+Step 2: Build executable
+  └─ Command: build_dev.bat
+  └─ Time: ~8 seconds
+
+Step 3: Launch and test
+  └─ Startup: ~2 seconds
+  └─ Basic testing: 5-10 min
+  └─ Comprehensive testing: 20-30 min
+
+Total typical cycle: 20-45 min (implementation + build + test)
+```
+
+#### Production Build Cycle
+```
+Step 1: Finalize changes
+  └─ Code review: 10-20 min
+
+Step 2: Build production executable
+  └─ Command: build_release.bat
+  └─ Time: ~15 seconds (includes optimization)
+
+Step 3: Distribution testing
+  └─ Test on clean system: 15-20 min
+  └─ Verify file size: 1 min
+  └─ Create release notes: 10-15 min
+
+Total: 35-70 min
+```
+
+---
+
+### Code Change Time Estimates
+
+#### Simple Change (1 file, <50 lines)
+**Total: ~30 min**
+- AI Implementation: 10 min
+- User Review: 5 min
+- Build: <1 min
+- Testing: 15 min
+
+**Examples:**
+- Fix a button label
+- Adjust dialog positioning
+- Update a calculation formula
+- Change color scheme
+
+---
+
+#### Medium Change (2-3 files, 100-200 lines)
+**Total: ~60 min**
+- AI Implementation: 20 min
+- User Review: 10 min
+- Build: <1 min
+- Testing: 30 min
+
+**Examples:**
+- Add new dialog with validation
+- Implement keyboard shortcut system
+- Create new analytics calculation
+- Add export format option
+
+---
+
+#### Complex Change (4+ files, 200+ lines)
+**Total: ~90-120 min**
+- AI Implementation: 30-40 min
+- User Review: 20 min
+- Build: <1 min
+- Testing: 40-60 min
+
+**Examples:**
+- Modularize code (extract to new file)
+- Implement new major feature
+- Refactor data persistence layer
+- Add comprehensive validation system
+
+---
+
+#### Architectural Change (Multiple modules, 500+ lines)
+**Total: ~2-3 hours**
+- AI Implementation: 60-90 min
+- User Review: 30-40 min
+- Build: <1 min
+- Testing: 60-90 min
+- Debug iterations: +30 min (likely)
+
+**Examples:**
+- Extract analytics to separate module
+- Redesign data storage system
+- Implement plugin architecture
+- Major UI overhaul
+
+---
+
+### Build Time Breakdown
+
+#### Development Build (`build_dev.bat`)
+```
+┌─────────────────────────────────────────┐
+│ Kill running processes:     ~1 second   │
+│ Clean build folders:        ~1 second   │
+│ Install dependencies:       ~2 seconds  │
+│ PyInstaller bundling:       ~3 seconds  │
+│ Copy libraries:             ~1 second   │
+│ Validation checks:          <1 second   │
+│ ─────────────────────────────────────── │
+│ Total:                      ~8 seconds  │
+└─────────────────────────────────────────┘
+```
+
+#### Production Build (`build_release.bat`)
+```
+┌─────────────────────────────────────────┐
+│ Kill running processes:     ~1 second   │
+│ Clean build folders:        ~1 second   │
+│ Install dependencies:       ~2 seconds  │
+│ PyInstaller bundling:       ~3 seconds  │
+│ Copy libraries:             ~1 second   │
+│ Aggressive optimization:    ~5 seconds  │
+│ Validation checks:          ~1 second   │
+│ Size verification:          ~1 second   │
+│ ─────────────────────────────────────── │
+│ Total:                      ~15 seconds │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### Testing Time Guidelines
+
+#### Quick Smoke Test (~5 min)
+- ✅ Application starts
+- ✅ Tray icon appears
+- ✅ Main window opens
+- ✅ Add one expense
+- ✅ View expense list
+
+#### Standard Testing (~15-20 min)
+- ✅ All above smoke tests
+- ✅ Edit/delete expense
+- ✅ Test Quick Add dialog
+- ✅ Test inline quick add
+- ✅ Verify analytics calculations
+- ✅ Check tray tooltip updates
+- ✅ Test keyboard shortcuts
+
+#### Comprehensive Testing (~30-40 min)
+- ✅ All standard tests
+- ✅ Export to Excel/PDF
+- ✅ Import from JSON backup
+- ✅ Test edge cases (empty fields, large amounts)
+- ✅ Test date picker edge cases
+- ✅ Verify window positioning
+- ✅ Test with existing data
+- ✅ Check error handling
+
+---
+
+### AI-Assisted vs Traditional Development
+
+#### Example: Adding Delete Confirmation Dialog
+
+**Traditional Human Development:**
+```
+Plan feature:              30 min
+Write dialog code:         60 min
+Add validation:            20 min
+Integrate with table:      30 min
+Test thoroughly:           20 min
+──────────────────────────────
+Total:                     160 min (~2.7 hours)
+```
+
+**AI-Assisted Development:**
+```
+Discuss feature:           5 min
+AI implements:            15 min
+User reviews code:        10 min
+Build & test:             15 min
+──────────────────────────────
+Total:                    45 min
+```
+
+**Time Saved: 115 min (72% faster)**
+
+---
+
+### Real-World Session Examples
+
+#### Morning Development Session (2 hours)
+```
+9:00 AM  - Discuss analytics module extraction (15 min)
+9:15 AM  - AI creates analytics.py (15 min)
+9:30 AM  - Review new module structure (15 min)
+9:45 AM  - Build & test (20 min)
+10:05 AM - Fix import issue (10 min)
+10:15 AM - Retest, all working (15 min)
+10:30 AM - Update documentation (20 min)
+10:50 AM - Create backup (10 min)
+───────────────────────────────────────────
+Result: Analytics module extracted, tested, documented
+```
+
+#### Evening Polish Session (1 hour)
+```
+7:00 PM - Discuss UI color improvements (10 min)
+7:10 PM - AI updates color scheme (10 min)
+7:20 PM - Build & visual test (15 min)
+7:35 PM - Tweak specific colors (15 min)
+7:50 PM - Final build & test (10 min)
+───────────────────────────────────────────
+Result: UI color scheme refined and polished
+```
+
+---
+
+### Key Takeaways
+
+1. **Build times are negligible** (~8-15 seconds) - not a bottleneck
+2. **AI implementation is fast** (10-40 min) - handles typing/refactoring
+3. **Testing is the real time sink** (20-60 min) - requires human judgment
+4. **Total cycle times are 50-70% faster** than traditional development
+5. **Your time focuses on**: Review → Test → Approve (not implementation)
+
+---
+
 ## 🛡️ Safety Features
 
 ### Version Manager

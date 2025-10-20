@@ -5,6 +5,7 @@ Handles smooth slide-in and slide-out animations for the main window
 
 import tkinter as tk
 import time
+import config
 
 
 class WindowAnimator:
@@ -14,7 +15,7 @@ class WindowAnimator:
         self.root = root_window
         self.is_animating = False
         
-    def slide_in(self, target_x, target_y, width, height, duration=200):
+    def slide_in(self, target_x, target_y, width, height, duration=config.Animation.SLIDE_OUT_DURATION_MS):
         """
         Show window with anti-flicker techniques (standard Windows behavior)
         
@@ -75,7 +76,7 @@ class WindowAnimator:
             self.root.attributes('-alpha', 1.0)
             self.is_animating = False
     
-    def slide_out(self, start_x, start_y, duration=200):
+    def slide_out(self, start_x, start_y, duration=config.Animation.SLIDE_OUT_DURATION_MS):
         """
         Animate window sliding out to the right (original direction)
         
@@ -109,9 +110,9 @@ class WindowAnimator:
             # Ease-out-quad AGGRESSIVE (faster throughout, especially middle/end)
             # Modified to move more distance earlier and finish faster
             def ease_out_quad(t):
-                # Apply stronger easing by using a power of 1.3 instead of 2
+                # Apply stronger easing by using a custom power (from config)
                 # Lower power = less deceleration = more aggressive middle/end
-                return 1 - pow(1 - t, 1.3)
+                return 1 - pow(1 - t, config.Animation.EASE_OUT_POWER)
             
             # Ease-out-cubic (VERY smooth, more gradual than quad)
             def ease_out_cubic(t):
@@ -177,11 +178,14 @@ class WindowAnimator:
                         current_x = start_x + (total_distance * eased_progress)
                     pixel_delta = current_x - last_x
                     
-                    # Calculate fade-out opacity (fade during last 40% of animation)
-                    # Starts fading at 60% progress, fully transparent at 100%
-                    if progress > 0.6:
-                        fade_progress = (progress - 0.6) / 0.4  # 0 to 1 over last 40%
-                        opacity = 1.0 - (fade_progress * 0.7)  # Fade from 1.0 to 0.3
+                    # Calculate fade-out opacity (fade during last portion of animation)
+                    # Configurable fade start progress and end opacity
+                    fade_start = config.Animation.FADE_START_PROGRESS
+                    if progress > fade_start:
+                        fade_duration = 1.0 - fade_start
+                        fade_progress = (progress - fade_start) / fade_duration  # 0 to 1 over fade duration
+                        fade_amount = 1.0 - config.Animation.FADE_END_OPACITY
+                        opacity = 1.0 - (fade_progress * fade_amount)  # Fade from 1.0 to config value
                     else:
                         opacity = 1.0
                     

@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
+import webbrowser
+import config
 
 
 def validate_amount_input(new_value):
@@ -54,12 +56,12 @@ class LiteFinPadGUI:
             with open('version.txt', 'r') as f:
                 version = f.read().strip()
         except:
-            version = "3.4"  # Fallback version
+            version = "3.5"  # Fallback version
         
         self.root.title(f"LiteFinPad v{version} - Monthly Expense Tracker")
-        self.root.geometry("700x1000")  # Increased height for inline Quick Add section
+        self.root.geometry(f"{config.Window.WIDTH}x{config.Window.HEIGHT}")  # Increased height for inline Quick Add section
         self.root.resizable(False, False)
-        self.root.configure(bg='#f0f0f0')
+        self.root.configure(bg=config.Colors.BG_LIGHT_GRAY)
         
         # Anti-flicker optimizations
         self.root.update_idletasks()  # Force initial rendering
@@ -71,28 +73,28 @@ class LiteFinPadGUI:
         self.style.theme_use('clam')
         
         # Configure custom styles for better legibility with increased font sizes
-        self.style.configure('Title.TLabel', font=('Segoe UI', 22, 'bold'), foreground='#1a1a1a')
-        self.style.configure('Month.TLabel', font=('Segoe UI', 18, 'bold'), foreground='#1a1a1a')
-        self.style.configure('Count.TLabel', font=('Segoe UI', 13), foreground='#1a1a1a')
-        self.style.configure('Total.TLabel', font=('Segoe UI', 38, 'bold'), foreground='#107c10')
-        self.style.configure('Rate.TLabel', font=('Segoe UI', 12), foreground='#323130')
-        self.style.configure('Analytics.TLabel', font=('Segoe UI', 11), foreground='#605e5c')
-        self.style.configure('Trend.TLabel', font=('Segoe UI', 11), foreground='#4A4A8A')
-        self.style.configure('Modern.TButton', font=('Segoe UI', 12, 'bold'),
+        self.style.configure('Title.TLabel', font=config.Fonts.TITLE, foreground=config.Colors.TEXT_BLACK)
+        self.style.configure('Month.TLabel', font=config.Fonts.SUBTITLE, foreground=config.Colors.TEXT_BLACK)
+        self.style.configure('Count.TLabel', font=config.get_font(config.Fonts.SIZE_LARGE), foreground=config.Colors.TEXT_BLACK)
+        self.style.configure('Total.TLabel', font=config.Fonts.HERO_TOTAL, foreground=config.Colors.GREEN_PRIMARY)
+        self.style.configure('Rate.TLabel', font=config.get_font(config.Fonts.SIZE_MEDIUM), foreground=config.Colors.TEXT_GRAY_DARK)
+        self.style.configure('Analytics.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.TEXT_GRAY_MEDIUM)
+        self.style.configure('Trend.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.PURPLE_PRIMARY)
+        self.style.configure('Modern.TButton', font=config.Fonts.BUTTON,
                            anchor='center')
         
         # Configure Add Expense button style with green accent and proper centering
-        self.style.configure('AddExpense.TButton', font=('Segoe UI', 12, 'bold'), 
-                           background='#107c10', foreground='#ffffff',
+        self.style.configure('AddExpense.TButton', font=config.Fonts.BUTTON, 
+                           background=config.Colors.GREEN_PRIMARY, foreground='#ffffff',
                            anchor='center')
         self.style.map('AddExpense.TButton',
-                      background=[('active', '#0e6b0e'), ('pressed', '#0c5a0c')],
+                      background=[('active', config.Colors.GREEN_HOVER), ('pressed', config.Colors.GREEN_PRESSED)],
                       foreground=[('active', '#ffffff'), ('pressed', '#ffffff')])
         
         # Configure toolbutton style for crisp emoji rendering
-        self.style.configure('Toolbutton', font=('Segoe UI', 12))
+        self.style.configure('Toolbutton', font=config.get_font(config.Fonts.SIZE_MEDIUM))
         self.style.map('Toolbutton', 
-                      background=[('active', '#e0e0e0'), ('pressed', '#d0d0d0')],
+                      background=[('active', config.Colors.BUTTON_ACTIVE_BG), ('pressed', config.Colors.BUTTON_PRESSED_BG)],
                       relief=[('pressed', 'sunken'), ('!pressed', 'flat')])
         
     def create_widgets(self):
@@ -154,7 +156,7 @@ class LiteFinPadGUI:
         self.about_label = ttk.Label(
             controls_frame,
             text="ℹ️",
-            font=('Segoe UI', 12),
+            font=config.get_font(config.Fonts.SIZE_MEDIUM),
             cursor='hand2'
         )
         self.about_label.pack(side=tk.LEFT, padx=(0, 2))
@@ -172,8 +174,8 @@ class LiteFinPadGUI:
         self.stay_on_top_label = tk.Label(
             controls_frame,
             text="📌",
-            font=('Segoe UI', 12),
-            background='#D0D0D0',  # Gray background when ON
+            font=config.get_font(config.Fonts.SIZE_MEDIUM),
+            background=config.Colors.BG_BUTTON_DISABLED,  # Gray background when ON
             cursor='hand2',  # Hand cursor to show it's clickable
             padx=5,
             pady=2
@@ -206,7 +208,7 @@ class LiteFinPadGUI:
         self.total_label.grid(row=1, column=0, columnspan=2, pady=(0, 5))
         
         # Sublabel: (Total Monthly)
-        ttk.Label(self.main_frame, text="(Total Monthly)", font=('Segoe UI', 10), foreground='#605e5c').grid(row=2, column=0, columnspan=2, pady=(0, 10))
+        ttk.Label(self.main_frame, text="(Total Monthly)", font=config.Fonts.LABEL, foreground=config.Colors.TEXT_GRAY_MEDIUM).grid(row=2, column=0, columnspan=2, pady=(0, 10))
         
         # Expense count display (exclude future expenses)
         from datetime import datetime
@@ -238,7 +240,7 @@ class LiteFinPadGUI:
         
         day_container = ttk.Frame(day_frame)
         day_container.pack()
-        ttk.Label(day_container, text="Day: ", font=('Segoe UI', 11, 'bold'), foreground='#4A8FCE').pack(side=tk.LEFT)
+        ttk.Label(day_container, text="Day: ", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.BLUE_NAVY).pack(side=tk.LEFT)
         ttk.Label(day_container, text=f"{current_day} / {total_days}", style='Analytics.TLabel').pack(side=tk.LEFT)
         
         # Week progress (right) - split label and value
@@ -247,7 +249,7 @@ class LiteFinPadGUI:
         
         week_container = ttk.Frame(week_frame)
         week_container.pack()
-        ttk.Label(week_container, text="Week: ", font=('Segoe UI', 11, 'bold'), foreground='#4A8FCE').pack(side=tk.LEFT)
+        ttk.Label(week_container, text="Week: ", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.BLUE_NAVY).pack(side=tk.LEFT)
         ttk.Label(week_container, text=f"{current_week:.1f} / {total_weeks}", style='Analytics.TLabel').pack(side=tk.LEFT)
         
         # Bottom row: Daily and Weekly averages
@@ -258,7 +260,7 @@ class LiteFinPadGUI:
         daily_avg_frame = ttk.Frame(bottom_row)
         daily_avg_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        ttk.Label(daily_avg_frame, text="Daily Average", font=('Segoe UI', 11, 'bold'), foreground='#8B0000').pack()
+        ttk.Label(daily_avg_frame, text="Daily Average", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.RED_PRIMARY).pack()
         self.daily_avg_label = ttk.Label(daily_avg_frame, text=f"${daily_avg:.2f} /day", style='Analytics.TLabel')
         self.daily_avg_label.pack()
         
@@ -266,7 +268,7 @@ class LiteFinPadGUI:
         weekly_avg_frame = ttk.Frame(bottom_row)
         weekly_avg_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
-        ttk.Label(weekly_avg_frame, text="Weekly Average", font=('Segoe UI', 11, 'bold'), foreground='#107c10').pack()
+        ttk.Label(weekly_avg_frame, text="Weekly Average", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.GREEN_PRIMARY).pack()
         self.weekly_avg_label = ttk.Label(weekly_avg_frame, text=f"${weekly_avg:.2f} /week", style='Analytics.TLabel')
         self.weekly_avg_label.pack()
         
@@ -287,19 +289,19 @@ class LiteFinPadGUI:
         pace_frame = ttk.Frame(row)
         pace_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        ttk.Label(pace_frame, text="Weekly Pace", font=('Segoe UI', 11, 'bold'), foreground='#E67E00').pack()
+        ttk.Label(pace_frame, text="Weekly Pace", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.ORANGE_PRIMARY).pack()
         self.pace_label = ttk.Label(pace_frame, text=f"${weekly_pace:.2f} /day", style='Analytics.TLabel')
         self.pace_label.pack()
-        ttk.Label(pace_frame, text=f"(this week: {pace_days} day{'s' if pace_days != 1 else ''})", font=('Segoe UI', 10), foreground='#605e5c').pack()
+        ttk.Label(pace_frame, text=f"(this week: {pace_days} day{'s' if pace_days != 1 else ''})", font=config.Fonts.LABEL, foreground=config.Colors.TEXT_GRAY_MEDIUM).pack()
         
         # Previous month (right)
         prev_month_frame = ttk.Frame(row)
         prev_month_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
-        ttk.Label(prev_month_frame, text="Previous Month", font=('Segoe UI', 11, 'bold'), foreground='#4A4A8A').pack()
+        ttk.Label(prev_month_frame, text="Previous Month", font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'), foreground=config.Colors.PURPLE_PRIMARY).pack()
         self.trend_label = ttk.Label(prev_month_frame, text=prev_month_total, style='Trend.TLabel')
         self.trend_label.pack()
-        ttk.Label(prev_month_frame, text=prev_month_name, font=('Segoe UI', 10), foreground='#605e5c').pack()
+        ttk.Label(prev_month_frame, text=prev_month_name, font=config.Fonts.LABEL, foreground=config.Colors.TEXT_GRAY_MEDIUM).pack()
         
     def create_buttons_section(self):
         """Create button section with proper spacing"""
@@ -338,11 +340,11 @@ class LiteFinPadGUI:
         # Create individual expense labels for better visibility (left-aligned, brown color)
         # Only showing 2 most recent expenses
         self.recent_expense_1 = ttk.Label(expenses_container, text="No recent expenses", 
-                                        font=('Segoe UI', 10), foreground='#8B4513', anchor='w')
+                                        font=config.Fonts.LABEL, foreground=config.Colors.TEXT_BROWN, anchor='w')
         self.recent_expense_1.pack(pady=3, fill=tk.X)
         
         self.recent_expense_2 = ttk.Label(expenses_container, text="", 
-                                        font=('Segoe UI', 10), foreground='#8B4513', anchor='w')
+                                        font=config.Fonts.LABEL, foreground=config.Colors.TEXT_BROWN, anchor='w')
         self.recent_expense_2.pack(pady=3, fill=tk.X)
         
         # Update recent expenses display
@@ -383,7 +385,7 @@ class LiteFinPadGUI:
             
             # Create label first to get its size
             label = tk.Label(tooltip, text=text, background="lightyellow", 
-                           relief="solid", borderwidth=1, font=('Segoe UI', 9))
+                           relief="solid", borderwidth=1, font=config.Fonts.LABEL_SMALL)
             label.pack()
             
             # Update to get actual size
@@ -418,7 +420,7 @@ class LiteFinPadGUI:
         # Update label appearance - simple background color change
         if new_state:
             # ON - gray background
-            self.stay_on_top_label.config(background='#D0D0D0')
+            self.stay_on_top_label.config(background=config.Colors.BG_BUTTON_DISABLED)
             # Update tooltip
             if hasattr(self.stay_on_top_label, 'tooltip'):
                 self.stay_on_top_label.tooltip.destroy()
@@ -462,16 +464,16 @@ class LiteFinPadGUI:
         app_name_label = ttk.Label(
             content_frame,
             text="LiteFinPad",
-            font=('Segoe UI', 20, 'bold'),
-            foreground='#0078D4'
+            font=config.Fonts.ABOUT_TITLE,
+            foreground=config.Colors.BLUE_LINK
         )
         app_name_label.pack(pady=(0, 5))
         
         version_label = ttk.Label(
             content_frame,
             text=f"Version {version}",
-            font=('Segoe UI', 11),
-            foreground='#605e5c'
+            font=config.get_font(config.Fonts.SIZE_NORMAL),
+            foreground=config.Colors.TEXT_GRAY_MEDIUM
         )
         version_label.pack(pady=(0, 15))
         
@@ -479,8 +481,8 @@ class LiteFinPadGUI:
         tagline_label = ttk.Label(
             content_frame,
             text="Monthly Expense Tracker",
-            font=('Segoe UI', 10, 'italic'),
-            foreground='#323130'
+            font=config.get_font(config.Fonts.SIZE_SMALL, 'italic'),
+            foreground=config.Colors.TEXT_GRAY_DARK
         )
         tagline_label.pack(pady=(0, 20))
         
@@ -492,8 +494,8 @@ class LiteFinPadGUI:
         credits_label = ttk.Label(
             content_frame,
             text="Built with AI assistance\n(Cursor + Claude Sonnet 4)",
-            font=('Segoe UI', 9),
-            foreground='#323130',
+            font=config.Fonts.LABEL_SMALL,
+            foreground=config.Colors.TEXT_GRAY_DARK,
             justify=tk.CENTER
         )
         credits_label.pack(pady=(0, 15))
@@ -502,8 +504,8 @@ class LiteFinPadGUI:
         features_label = ttk.Label(
             content_frame,
             text="✓ 100% offline - no internet connection required\n✓ Lightweight and fast\n✓ Export to Excel and PDF",
-            font=('Segoe UI', 9),
-            foreground='#323130',
+            font=config.Fonts.LABEL_SMALL,
+            foreground=config.Colors.TEXT_GRAY_DARK,
             justify=tk.CENTER
         )
         features_label.pack(pady=(0, 15))
@@ -516,27 +518,33 @@ class LiteFinPadGUI:
         license_label = ttk.Label(
             content_frame,
             text="License: MIT",
-            font=('Segoe UI', 9),
-            foreground='#605e5c'
+            font=config.Fonts.LABEL_SMALL,
+            foreground=config.Colors.TEXT_GRAY_MEDIUM
         )
         license_label.pack(pady=(0, 5))
         
-        # GitHub link (text only) - COMMENTED OUT until repo is created
-        # github_label = ttk.Label(
-        #     content_frame,
-        #     text="github.com/yourusername/litefinpad",
-        #     font=('Segoe UI', 9),
-        #     foreground='#0078D4',
-        #     cursor='hand2'
-        # )
-        # github_label.pack(pady=(0, 20))
+        # GitHub link (clickable)
+        github_label = ttk.Label(
+            content_frame,
+            text="GitHub",
+            font=config.get_font(config.Fonts.SIZE_TINY, 'underline'),
+            foreground=config.Colors.BLUE_LINK,
+            cursor='hand2'
+        )
+        github_label.pack(pady=(0, 20))
+        
+        # Make GitHub link clickable
+        def open_github(event):
+            webbrowser.open('https://github.com/aHuddini/LiteFinPad')
+        
+        github_label.bind('<Button-1>', open_github)
         
         # Close link - simple clickable text
         close_label = ttk.Label(
             content_frame,
             text="Close",
-            font=('Segoe UI', 10, 'underline'),
-            foreground='#0078D4',
+            font=config.get_font(config.Fonts.SIZE_SMALL, 'underline'),
+            foreground=config.Colors.BLUE_LINK,
             cursor='hand2'
         )
         close_label.pack()
@@ -547,9 +555,9 @@ class LiteFinPadGUI:
         
         # Center the dialog now that it's fully configured
         dialog.update_idletasks()
-        dialog.geometry("450x480")  # Set size
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (450 // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (480 // 2)
+        dialog.geometry(f"{config.Dialog.ABOUT_WIDTH}x{config.Dialog.ABOUT_HEIGHT}")  # Set size
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (config.Dialog.ABOUT_WIDTH // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (config.Dialog.ABOUT_HEIGHT // 2)
         dialog.geometry(f"+{x}+{y}")
         
         # Show the dialog now that it's fully configured and positioned
@@ -607,31 +615,31 @@ class LiteFinPadGUI:
         typical_frame = ttk.Frame(row)
         typical_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        ttk.Label(typical_frame, text="Typical Expense", font=('Segoe UI', 10, 'bold'), foreground='#323130').pack()
+        ttk.Label(typical_frame, text="Typical Expense", font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), foreground=config.Colors.TEXT_GRAY_DARK).pack()
         self.list_median_label = ttk.Label(typical_frame, text=f"${median_expense:.2f}", style='Analytics.TLabel')
         self.list_median_label.pack()
-        self.median_count_label = ttk.Label(typical_frame, text=f"(median of {expense_count} expense{'s' if expense_count != 1 else ''})", font=('Segoe UI', 9), foreground='#605e5c')
+        self.median_count_label = ttk.Label(typical_frame, text=f"(median of {expense_count} expense{'s' if expense_count != 1 else ''})", font=config.Fonts.LABEL_SMALL, foreground=config.Colors.TEXT_GRAY_MEDIUM)
         self.median_count_label.pack()
         
         # Total amount (center)
         total_frame = ttk.Frame(row)
         total_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         
-        ttk.Label(total_frame, text="Total Amount", font=('Segoe UI', 10, 'bold'), foreground='#107c10').pack()
-        self.list_total_label = ttk.Label(total_frame, text=f"${total_amount:.2f}", style='Analytics.TLabel', foreground='#107c10')
+        ttk.Label(total_frame, text="Total Amount", font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), foreground=config.Colors.GREEN_PRIMARY).pack()
+        self.list_total_label = ttk.Label(total_frame, text=f"${total_amount:.2f}", style='Analytics.TLabel', foreground=config.Colors.GREEN_PRIMARY)
         self.list_total_label.pack()
         expense_count_total = len(self.expense_tracker.expenses)
-        self.total_count_label = ttk.Label(total_frame, text=f"({expense_count_total} expense{'s' if expense_count_total != 1 else ''})", font=('Segoe UI', 9), foreground='#605e5c')
+        self.total_count_label = ttk.Label(total_frame, text=f"({expense_count_total} expense{'s' if expense_count_total != 1 else ''})", font=config.Fonts.LABEL_SMALL, foreground=config.Colors.TEXT_GRAY_MEDIUM)
         self.total_count_label.pack()
         
         # Largest expense (right)
         largest_frame = ttk.Frame(row)
         largest_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
         
-        ttk.Label(largest_frame, text="Largest Expense", font=('Segoe UI', 10, 'bold'), foreground='#8B0000').pack()
+        ttk.Label(largest_frame, text="Largest Expense", font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), foreground=config.Colors.RED_PRIMARY).pack()
         self.largest_label = ttk.Label(largest_frame, text=f"${largest_expense:.2f}", style='Analytics.TLabel')
         self.largest_label.pack()
-        self.largest_desc_label = ttk.Label(largest_frame, text=f"({largest_desc})", font=('Segoe UI', 9), foreground='#605e5c')
+        self.largest_desc_label = ttk.Label(largest_frame, text=f"({largest_desc})", font=config.Fonts.LABEL_SMALL, foreground=config.Colors.TEXT_GRAY_MEDIUM)
         self.largest_desc_label.pack()
     
     def create_quick_add_section(self):
@@ -651,21 +659,21 @@ class LiteFinPadGUI:
         # Amount field (left, reduced width)
         amount_frame = ttk.Frame(row1_container)
         amount_frame.pack(side=tk.LEFT, padx=(0, 15))
-        ttk.Label(amount_frame, text="Amount ($):", font=("Segoe UI", 10)).pack(anchor=tk.W)
+        ttk.Label(amount_frame, text="Amount ($):", font=config.Fonts.LABEL).pack(anchor=tk.W)
         self.inline_amount_var = tk.StringVar()
         
         # Register validation function for amount field
         vcmd = (self.root.register(validate_amount_input), '%P')
         
-        self.inline_amount_entry = ttk.Entry(amount_frame, textvariable=self.inline_amount_var, font=("Segoe UI", 11), width=15,
+        self.inline_amount_entry = ttk.Entry(amount_frame, textvariable=self.inline_amount_var, font=config.Fonts.ENTRY, width=15,
                                             validate='key', validatecommand=vcmd)
         self.inline_amount_entry.pack(pady=(2, 0))
         
         # Description field (right, reduced width)
         desc_frame = ttk.Frame(row1_container)
         desc_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(desc_frame, text="Description:", font=("Segoe UI", 10)).pack(anchor=tk.W)
-        self.inline_description_entry = ttk.Entry(desc_frame, font=("Segoe UI", 11))
+        ttk.Label(desc_frame, text="Description:", font=config.Fonts.LABEL).pack(anchor=tk.W)
+        self.inline_description_entry = ttk.Entry(desc_frame, font=config.Fonts.ENTRY)
         self.inline_description_entry.pack(fill=tk.X, pady=(2, 0))
         
         # Bind Enter key for sequential field navigation
@@ -689,7 +697,7 @@ class LiteFinPadGUI:
         # Date field (left)
         date_frame = ttk.Frame(row2_container)
         date_frame.pack(side=tk.LEFT, padx=(0, 15))
-        ttk.Label(date_frame, text="Date:", font=("Segoe UI", 10)).pack(anchor=tk.W)
+        ttk.Label(date_frame, text="Date:", font=config.Fonts.LABEL).pack(anchor=tk.W)
         
         # Generate date options
         today = datetime.now()
@@ -710,15 +718,15 @@ class LiteFinPadGUI:
         # Configure custom style for date combobox with darker blue highlight and white text
         style = ttk.Style()
         style.map('DateCombo.TCombobox',
-                  fieldbackground=[('readonly', '#2E5C8A')],
-                  foreground=[('readonly', 'white')],
-                  selectbackground=[('readonly', '#2E5C8A')],
-                  selectforeground=[('readonly', 'white')])
+                  fieldbackground=[('readonly', config.Colors.DATE_BG)],
+                  foreground=[('readonly', config.Colors.DATE_FG)],
+                  selectbackground=[('readonly', config.Colors.DATE_BG)],
+                  selectforeground=[('readonly', config.Colors.DATE_FG)])
         style.configure('DateCombo.TCombobox',
-                       foreground='white',
-                       fieldbackground='#2E5C8A')
+                       foreground=config.Colors.DATE_FG,
+                       fieldbackground=config.Colors.DATE_BG)
         
-        self.inline_date_combo = ttk.Combobox(date_frame, values=date_options, state="readonly", font=("Segoe UI", 10), width=30, style='DateCombo.TCombobox')
+        self.inline_date_combo = ttk.Combobox(date_frame, values=date_options, state="readonly", font=config.Fonts.LABEL, width=30, style='DateCombo.TCombobox')
         self.inline_date_combo.set(date_options[current_day - 1])  # Default to today
         self.inline_date_combo.pack(pady=(2, 0))
         
@@ -726,7 +734,7 @@ class LiteFinPadGUI:
         button_frame = ttk.Frame(row2_container)
         button_frame.pack(side=tk.LEFT, padx=(15, 0))
         # Add spacer to align button with entry fields
-        ttk.Label(button_frame, text=" ", font=("Segoe UI", 10)).pack()
+        ttk.Label(button_frame, text=" ", font=config.Fonts.LABEL).pack()
         self.inline_add_button = ttk.Button(button_frame, text="Add Item", 
                                            command=self.on_inline_add_expense,
                                            style='Modern.TButton')

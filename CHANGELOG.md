@@ -1,5 +1,190 @@
 # LiteFinPad Changelog
 
+## 🏗️ Version 3.5 - Major Architectural Refactoring - October 19, 2025
+
+### **Summary**
+v3.5 represents a **major architectural milestone** for LiteFinPad, introducing comprehensive modularization and separation of concerns. This release creates 5 new modules (Analytics, Data Manager, Validation, NumberPad Widget, Config) that extract business logic, data persistence, validation rules, reusable UI components, and visual constants from the monolithic `main.py`. The result is a **22.5% reduction** in main.py complexity (1,062 → 823 lines) and a dramatically more maintainable, testable, and scalable codebase. This foundation enables future enhancements like theming, unit testing, and rapid feature development.
+
+---
+
+### ✨ **New Features**
+
+#### **1. Analytics Module Extraction** 📊 COMPLETED
+- **Created**: New `analytics.py` module with static methods for expense calculations
+  - **Methods**:
+    - `calculate_daily_average()` - Average daily spending
+    - `calculate_weekly_pace()` - Weekly spending rate
+    - `find_largest_expense()` - Identifies highest expense
+    - `calculate_median_expense()` - Median expense value
+    - `calculate_days_remaining()` - Days left in month
+  - **Benefits**:
+    - Separates analytical logic from UI code
+    - Easier to test calculations independently
+    - Reusable across different components
+  - **Impact**: HIGH - Major code organization improvement
+  - **Files Created**: `analytics.py`
+  - **Files Modified**: `main.py` (line count reduced)
+
+#### **2. Data Manager Module Extraction** 💾 COMPLETED
+- **Created**: New `data_manager.py` module for all data persistence operations
+  - **Responsibilities**:
+    - Loading expense data from JSON files
+    - Saving expense data to JSON files
+    - Managing monthly data folders
+    - Handling file I/O errors
+  - **Benefits**:
+    - Decouples data layer from business logic
+    - Centralized error handling for file operations
+    - Easier to modify storage strategy (e.g., database migration)
+  - **Impact**: HIGH - Clean separation of concerns
+  - **Files Created**: `data_manager.py`
+  - **Files Modified**: `main.py` (line count reduced)
+
+#### **3. Validation System** ✅ COMPLETED
+- **Created**: New `validation.py` module with structured input validation
+  - **Classes**:
+    - `ValidationResult` - Standardized validation response (success, error message)
+    - `ValidationPresets` - Pre-configured validation rules
+  - **Validations**:
+    - Amount validation (positive, decimal, max length)
+    - Description validation (required, max length)
+  - **Benefits**:
+    - Consistent validation across all dialogs
+    - Reduces code duplication
+    - Easy to add new validation rules
+  - **Impact**: MEDIUM - Improved code quality and consistency
+  - **Files Created**: `validation.py`
+  - **Files Modified**: `main.py`, `gui.py`, `expense_table.py`
+
+#### **4. NumberPad Widget Component** 🔢 COMPLETED
+- **Created**: New `widgets/number_pad.py` reusable UI component
+  - **Features**:
+    - 3x4 grid layout (digits 0-9, decimal, clear)
+    - Configurable styling (fonts, padding, colors)
+    - Entry field integration
+    - Decimal point validation (only one allowed)
+    - Max length enforcement
+  - **Usage**: Used in Quick Add dialog and Add Expense dialog
+  - **Benefits**:
+    - Eliminates code duplication (~100+ lines saved)
+    - Consistent behavior across dialogs
+    - Easy to maintain and update
+    - Foundation for future widget library
+  - **Impact**: MEDIUM - First reusable UI component
+  - **Files Created**: `widgets/number_pad.py`
+  - **Files Modified**: `main.py` (line count reduced)
+
+#### **5. Centralized Configuration Module** 🎨 COMPLETED
+- **Added**: New `config.py` module containing all visual and behavioral constants
+  - **Categories**:
+    - `Window` - Window dimensions and positioning
+    - `Dialog` - Dialog sizes for all dialogs (Quick Add, About, Edit Expense)
+    - `Colors` - Complete color palette (backgrounds, text, accents, links)
+    - `Fonts` - Font families, sizes, and presets
+    - `Animation` - Window animation parameters
+    - `NumberPad` - Number pad widget configuration
+    - `TreeView` - Expense table styling
+  - **Helper Functions**:
+    - `get_font(size, weight)` - Build font tuples dynamically
+    - `get_window_geometry(width, height, x, y)` - Format geometry strings
+  - **Impact**: HIGH - Single source of truth for all styling constants
+  - **Files Created**: `config.py` (242 lines)
+
+#### **2. Missing Color Constants Added** 🎨 COMPLETED
+- **Added**: `BLUE_LINK` constant for clickable hyperlinks
+  - **Usage**: About dialog GitHub link
+  - **Impact**: LOW - Fixes About dialog AttributeError
+  - **Files Modified**: `config.py`
+
+---
+
+### 🔧 **Improvements**
+
+#### **1. Context Menu Visual Hierarchy** 🎯 COMPLETED
+- **Improved**: Expense table right-click context menu now has clearer visual organization
+  - **Changes**:
+    - Moved "Delete Expense" to bottom of menu (separated by divider)
+    - Added red color (#8B0000) and bold font to "Delete Expense"
+    - Removed emojis from menu items to prevent alignment issues
+    - Added separator above "Copy Amount" for better grouping
+  - **Benefits**:
+    - Visual safety warning without friction (no confirmation dialog)
+    - Clearer menu organization with logical grouping
+    - Prevents accidental deletions through visual prominence
+  - **Impact**: MEDIUM - Improved UX for power users who rely on context menu
+  - **Files Modified**: `expense_table.py`
+
+#### **2. Code Refactoring Across All Modules** 📦 COMPLETED
+- **Refactored**: Replaced ~50+ hardcoded constants with `config` references
+  - **Files Affected**:
+    1. `widgets/number_pad.py` - Number pad styling and behavior
+    2. `window_animation.py` - Slide-out animation parameters
+    3. `main.py` - Window dimensions, margins, dialog sizes
+    4. `expense_table.py` - Table styling, fonts, colors, dialog dimensions
+    5. `gui.py` - All UI elements, About dialog, dashboard, metrics
+  - **Benefits**:
+    - **Maintainability**: Change colors/fonts in one place
+    - **Consistency**: Guaranteed visual consistency across UI
+    - **Customization**: Easy to create color themes or adjust fonts
+    - **Readability**: Self-documenting code with named constants
+  - **Impact**: HIGH - Foundation for future theming and easier maintenance
+
+#### **3. About Dialog Config Integration** ℹ️ COMPLETED
+- **Updated**: About dialog now uses config constants for all styling
+  - `ABOUT_WIDTH`, `ABOUT_HEIGHT` for dialog size
+  - `BLUE_LINK` for clickable GitHub link color
+  - `ABOUT_TITLE` font for app name
+- **Impact**: MEDIUM - Consistent styling and easier future updates
+- **Files Modified**: `gui.py`, `config.py`
+
+---
+
+### 🐛 **Bug Fixes**
+
+#### **1. About Dialog AttributeError** 🐛 COMPLETED
+- **Fixed**: `AttributeError: type object 'Colors' has no attribute 'BLUE_LINK'`
+  - **Issue**: About dialog referenced undefined `BLUE_LINK` constant
+  - **Solution**: Added `BLUE_LINK = '#0078D4'` to `Colors` class in `config.py`
+- **Impact**: CRITICAL - About dialog now functional
+- **Files Modified**: `config.py`
+
+---
+
+### 📊 **Build Statistics**
+- **Version**: 3.5 (development)
+- **Code Quality**: **Major architectural refactoring milestone**
+- **Line Count Changes**:
+  - `main.py`: **1,062 → 823 lines (-239 lines, -22.5%)**
+  - `analytics.py`: +100 lines (new module)
+  - `data_manager.py`: +80 lines (new module)
+  - `validation.py`: +60 lines (new module)
+  - `widgets/number_pad.py`: +151 lines (new widget)
+  - `config.py`: +242 lines (new module)
+  - **Total New Modular Code**: ~633 lines
+- **Modules Created**: 5 new modules (Analytics, Data Manager, Validation, NumberPad, Config)
+- **Constants Extracted**: ~50+ hardcoded values
+- **Code Duplication Eliminated**: ~100+ lines
+- **Overall Impact**: Significantly improved maintainability, testability, and code organization
+
+---
+
+### 📝 **Developer Notes**
+- **Breaking Changes**: None (internal refactoring only)
+- **Architecture Improvements**:
+  - **Separation of Concerns**: Business logic, data layer, UI, and configuration are now in separate modules
+  - **Reusability**: Created first reusable widget component (NumberPad)
+  - **Testability**: Static methods in Analytics make unit testing possible
+  - **Maintainability**: `main.py` reduced by 22.5%, easier to navigate
+  - **Scalability**: Foundation for future modular development
+- **Future Work**: 
+  - Theme system (dark mode, custom colors)
+  - User-configurable fonts and sizes
+  - Config file for user preferences
+  - Additional reusable widget components
+  - Comprehensive unit test suite
+
+---
+
 ## ⌨️ Version 3.4 - Keyboard Shortcut Enhancements - October 19, 2025
 
 ### **Summary**

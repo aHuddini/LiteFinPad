@@ -14,41 +14,15 @@ import json
 import os
 from datetime import datetime
 from typing import List, Dict, Optional, Callable
+from validation import InputValidation, ValidationPresets, ValidationResult
+import config
 
 
 def validate_amount_input(new_value):
     """
-    Validate amount field input in real-time
-    - Only allows digits, one decimal point
-    - Maximum 2 decimal places
-    - No upper limit on value
-    - Returns True if valid, False otherwise
+    Validate amount field input in real-time (uses shared validation module)
     """
-    if new_value == "":
-        return True  # Allow empty field
-    
-    # Check if it only contains digits and at most one decimal point
-    if not all(c.isdigit() or c == '.' for c in new_value):
-        return False
-    
-    # Check for only one decimal point
-    if new_value.count('.') > 1:
-        return False
-    
-    # Check decimal places (max 2)
-    if '.' in new_value:
-        integer_part, decimal_part = new_value.split('.')
-        if len(decimal_part) > 2:
-            return False
-    
-    # Check if it's a valid number format
-    try:
-        if new_value != '.':
-            float(new_value)
-    except ValueError:
-        return False
-    
-    return True
+    return InputValidation.validate_amount(new_value)
 
 
 class ExpenseData:
@@ -122,17 +96,17 @@ class ExpenseTableManager:
         # Configure modern styling
         style = ttk.Style()
         style.configure("Modern.Treeview", 
-                       font=('Segoe UI', 10),
-                       rowheight=28,
+                       font=config.get_font(config.Fonts.SIZE_SMALL),
+                       rowheight=config.TreeView.ROW_HEIGHT,
                        background='white',
                        foreground='black',
                        fieldbackground='white')
-        style.configure("Modern.Treeview.Heading", 
-                       font=('Segoe UI', 10, 'bold'),
-                       background='#f0f0f0',
+        style.configure("Modern.Treeview.Heading",
+                       font=config.get_font(config.TreeView.HEADER_FONT_SIZE, 'bold'),
+                       background=config.Colors.BG_LIGHT_GRAY,
                        foreground='black')
         style.map("Modern.Treeview", 
-                 background=[('selected', '#0078d4')],
+                 background=[('selected', config.Colors.BLUE_SELECTED)],
                  foreground=[('selected', 'white')])
         
         # Add treeview directly to table frame
@@ -144,7 +118,7 @@ class ExpenseTableManager:
         self.tree.configure(yscrollcommand=scrollbar.set)
         
         # Configure tags for future expenses
-        self.tree.tag_configure('future', foreground='#888888', font=('Segoe UI', 10, 'italic'))
+        self.tree.tag_configure('future', foreground=config.Colors.TEXT_GRAY_LIGHT, font=config.get_font(config.Fonts.SIZE_SMALL, 'italic'))
         
         # Bind events
         self.tree.bind("<Button-3>", self.show_context_menu)  # Right-click
@@ -155,7 +129,7 @@ class ExpenseTableManager:
         self.status_frame = ttk.Frame(self.table_frame)
         self.status_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
-        self.status_label = ttk.Label(self.status_frame, text="No expenses", font=('Segoe UI', 10))
+        self.status_label = ttk.Label(self.status_frame, text="No expenses", font=config.Fonts.LABEL)
         self.status_label.pack(side=tk.LEFT)
         
     def load_expenses(self, expenses_data: List[Dict]):
@@ -263,11 +237,27 @@ class ExpenseTableManager:
             
             # Create context menu
             context_menu = tk.Menu(self.parent_frame.winfo_toplevel(), tearoff=0)
+            
+            # Primary action at top
             context_menu.add_command(label="Edit Expense", command=self.edit_selected_expense)
-            context_menu.add_command(label="Delete Expense", command=self.delete_selected_expense)
+            
+            # Visual separator
             context_menu.add_separator()
+            
+            # Utility actions in middle
             context_menu.add_command(label="Copy Amount", command=self.copy_amount)
             context_menu.add_command(label="Copy Description", command=self.copy_description)
+            
+            # Visual separator before dangerous action
+            context_menu.add_separator()
+            
+            # Dangerous action at bottom with visual warning
+            context_menu.add_command(
+                label="Delete Expense",
+                command=self.delete_selected_expense,
+                foreground="red",
+                font=("Segoe UI", 9, "bold")
+            )
             
             # Show context menu
             try:
@@ -394,7 +384,7 @@ class ExpenseAddDialog:
         self.dialog.title("Add New Expense")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
-        self.dialog.configure(bg='#f8f9fa')
+        self.dialog.configure(bg=config.Colors.BG_DIALOG)
         
         # IMPORTANT: Withdraw immediately to prevent flash at top-left corner
         self.dialog.withdraw()
@@ -560,7 +550,7 @@ class ExpenseAddDialog:
         screen_height = parent.winfo_screenheight()
         if y < 0:
             y = 20  # Small margin from top
-        self.dialog.geometry(f"400x670+{x}+{y}")
+        self.dialog.geometry(f"{config.Dialog.ADD_EXPENSE_WIDTH}x{config.Dialog.ADD_EXPENSE_HEIGHT}+{x}+{y}")
         
     def setup_dialog(self):
         """Setup dialog components with clean, simple design"""
@@ -578,14 +568,14 @@ class ExpenseAddDialog:
         main_frame.columnconfigure(0, weight=1)
         
         # Amount field
-        ttk.Label(main_frame, text="Amount ($):", font=("Segoe UI", 10)).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Amount ($):", font=config.Fonts.LABEL).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         self.amount_var = tk.StringVar()
         
         # Register validation function
         vcmd = (self.dialog.register(validate_amount_input), '%P')
         
-        self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var, 
-                                     font=("Segoe UI", 11),
+        self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var,
+                                     font=config.Fonts.ENTRY,
                                      validate='key', validatecommand=vcmd)
         self.amount_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
@@ -596,11 +586,11 @@ class ExpenseAddDialog:
         ttk.Label(main_frame, text="Description:", font=("Segoe UI", 10)).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         self.description_var = tk.StringVar()
         self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
-                                          font=("Segoe UI", 11))
+                                          font=config.Fonts.ENTRY)
         self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
         # Date field with smart dropdown
-        ttk.Label(main_frame, text="Date:", font=("Segoe UI", 10)).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Date:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
         
         # Generate date options for current month
         self.date_var = tk.StringVar()
@@ -613,17 +603,17 @@ class ExpenseAddDialog:
         # Configure custom style for date combobox with darker blue highlight and white text
         style = ttk.Style()
         style.map('DateCombo.TCombobox',
-                  fieldbackground=[('readonly', '#2E5C8A')],
-                  foreground=[('readonly', 'white')],
-                  selectbackground=[('readonly', '#2E5C8A')],
-                  selectforeground=[('readonly', 'white')])
+                  fieldbackground=[('readonly', config.Colors.DATE_BG)],
+                  foreground=[('readonly', config.Colors.DATE_FG)],
+                  selectbackground=[('readonly', config.Colors.DATE_BG)],
+                  selectforeground=[('readonly', config.Colors.DATE_FG)])
         style.configure('DateCombo.TCombobox',
-                       foreground='white',
-                       fieldbackground='#2E5C8A')
+                       foreground=config.Colors.DATE_FG,
+                       fieldbackground=config.Colors.DATE_BG)
         
         self.date_combo = ttk.Combobox(main_frame, textvariable=self.date_var, 
                                       values=date_options, state="readonly", 
-                                      font=("Segoe UI", 10), style='DateCombo.TCombobox')
+                                      font=config.Fonts.LABEL, style='DateCombo.TCombobox')
         self.date_combo.grid(row=6, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Buttons frame
@@ -644,38 +634,8 @@ class ExpenseAddDialog:
     def add_expense(self):
         """Add the expense with validation"""
         try:
-            amount_str = self.amount_var.get().strip()
-            description = self.description_var.get().strip()
-            date_selection = self.date_var.get().strip()
-            
-            # Validation
-            if not amount_str:
-                messagebox.showerror("Error", "Please enter an amount")
-                self.amount_entry.focus()
-                return
-                
-            if not description:
-                messagebox.showerror("Error", "Please enter a description")
-                self.description_entry.focus()
-                return
-                
-            if not date_selection:
-                messagebox.showerror("Error", "Please select a date")
-                self.date_combo.focus()
-                return
-                
-            amount = float(amount_str)
-            if amount <= 0:
-                messagebox.showerror("Error", "Amount must be greater than 0")
-                self.amount_entry.focus()
-                return
-                
-            if amount > 100000:  # Reasonable upper limit
-                messagebox.showerror("Error", "Amount seems too large. Please verify.")
-                self.amount_entry.focus()
-                return
-                
             # Parse date from selection (e.g., "12 - October 12th" -> 2025-10-12)
+            date_selection = self.date_var.get().strip()
             try:
                 # Extract the day number from the beginning of the selection
                 # Format: "12 - October 12th" -> day = 12
@@ -689,25 +649,49 @@ class ExpenseAddDialog:
                 # Create date string in YYYY-MM-DD format
                 date_str = f"{current_year}-{current_month:02d}-{day_num:02d}"
                 
-                # Validate the date
+                # Validate the date format
                 datetime.strptime(date_str, "%Y-%m-%d")
             except (ValueError, IndexError):
-                messagebox.showerror("Error", "Invalid date selection")
+                messagebox.showerror("Validation Error", "Please select a valid date")
+                self.date_combo.focus()
                 return
+            
+            # Validate all fields using preset validator
+            result = ValidationPresets.manual_add_expense(
+                self.amount_var.get(),
+                self.description_var.get(),
+                date_str
+            )
+            
+            # If validation failed, show error and focus appropriate field
+            if not result:
+                messagebox.showerror("Validation Error", result.error_message)
                 
-            # Create expense
+                # Auto-focus the field that failed validation
+                if result.error_field == "amount":
+                    self.amount_entry.focus()
+                elif result.error_field == "description":
+                    self.description_entry.focus()
+                elif result.error_field == "date":
+                    self.date_combo.focus()
+                return
+            
+            # Get sanitized values from validation result
+            sanitized = result.sanitized_value
+            
+            # Create expense with pre-validated, cleaned data
             expense = ExpenseData(
-                date=date_str,
-                amount=amount,
-                description=description
+                date=sanitized['date'],
+                amount=sanitized['amount'],
+                description=sanitized['description']
             )
             
             # Add expense
             self.on_add(expense)
             self.dialog.destroy()
             
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid amount")
+        except Exception as e:
+            messagebox.showerror("Error", f"Unexpected error: {e}")
             self.amount_entry.focus()
 
 
@@ -721,11 +705,11 @@ class ExpenseEditDialog:
         # Create dialog window
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Edit Expense")
-        self.dialog.geometry("350x250")
+        self.dialog.geometry(f"{config.Dialog.EDIT_EXPENSE_WIDTH}x{config.Dialog.EDIT_EXPENSE_HEIGHT}")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.configure(bg='#f8f9fa')
+        self.dialog.configure(bg=config.Colors.BG_DIALOG)
         
         # Position the dialog at lower right corner
         self.center_dialog(parent)
@@ -762,9 +746,9 @@ class ExpenseEditDialog:
     def center_dialog(self, parent):
         """Center dialog on parent window"""
         parent.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() // 2) - 175
-        y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
-        self.dialog.geometry(f"350x250+{x}+{y}")
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - (config.Dialog.EDIT_EXPENSE_WIDTH // 2)
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - (config.Dialog.EDIT_EXPENSE_HEIGHT // 2)
+        self.dialog.geometry(f"{config.Dialog.EDIT_EXPENSE_WIDTH}x{config.Dialog.EDIT_EXPENSE_HEIGHT}+{x}+{y}")
         
     def setup_dialog(self):
         """Setup dialog components"""
@@ -783,25 +767,25 @@ class ExpenseEditDialog:
         
         # Title
         title_label = ttk.Label(main_frame, text="Edit Expense", 
-                               font=("Segoe UI", 14, "bold"))
+                               font=config.Fonts.HEADER)
         title_label.grid(row=0, column=0, pady=(0, 20))
         
         # Amount field
-        ttk.Label(main_frame, text="Amount:", font=("Segoe UI", 10)).grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
-        self.amount_var = tk.StringVar(value=str(self.expense.amount))
+        ttk.Label(main_frame, text="Amount:", font=config.Fonts.LABEL).grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        self.amount_var = tk.StringVar(value=InputValidation.format_amount(self.expense.amount))
         self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var, 
-                                     width=25, font=("Segoe UI", 11))
+                                     width=25, font=config.Fonts.ENTRY)
         self.amount_entry.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Description field
-        ttk.Label(main_frame, text="Description:", font=("Segoe UI", 10)).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Description:", font=config.Fonts.LABEL).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         self.description_var = tk.StringVar(value=self.expense.description)
         self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
-                                          width=25, font=("Segoe UI", 11))
+                                          width=25, font=config.Fonts.ENTRY)
         self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Date field - Month dropdown
-        ttk.Label(main_frame, text="Month:", font=("Segoe UI", 10)).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Month:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
         
         # Create month dropdown
         self.month_var = tk.StringVar()
@@ -844,38 +828,8 @@ class ExpenseEditDialog:
     def update_expense(self):
         """Update the expense with validation"""
         try:
-            amount_str = self.amount_var.get().strip()
-            description = self.description_var.get().strip()
+            # Parse date from month selection
             month_str = self.month_var.get().strip()
-            
-            # Validation
-            if not amount_str:
-                messagebox.showerror("Error", "Please enter an amount")
-                self.amount_entry.focus()
-                return
-                
-            if not description:
-                messagebox.showerror("Error", "Please enter a description")
-                self.description_entry.focus()
-                return
-                
-            if not month_str:
-                messagebox.showerror("Error", "Please select a month")
-                self.month_combo.focus()
-                return
-                
-            amount = float(amount_str)
-            if amount <= 0:
-                messagebox.showerror("Error", "Amount must be greater than 0")
-                self.amount_entry.focus()
-                return
-                
-            if amount > 100000:
-                messagebox.showerror("Error", "Amount seems too large. Please verify.")
-                self.amount_entry.focus()
-                return
-                
-            # Convert month selection to date format
             try:
                 # Extract month number from selection (e.g., "1 - January" -> 1)
                 month_num = int(month_str.split(' - ')[0])
@@ -885,24 +839,47 @@ class ExpenseEditDialog:
                 # Create date string in YYYY-MM-DD format
                 date_str = f"{current_year}-{month_num:02d}-{current_day:02d}"
                 
-                # Validate the date
+                # Validate the date format
                 datetime.strptime(date_str, "%Y-%m-%d")
             except (ValueError, IndexError):
-                messagebox.showerror("Error", "Invalid month selection")
+                messagebox.showerror("Validation Error", "Please select a valid month")
                 self.month_combo.focus()
                 return
+            
+            # Validate all fields using preset validator
+            result = ValidationPresets.edit_expense(
+                self.amount_var.get(),
+                self.description_var.get(),
+                date_str
+            )
+            
+            # If validation failed, show error and focus appropriate field
+            if not result:
+                messagebox.showerror("Validation Error", result.error_message)
                 
-            # Create updated expense
+                # Auto-focus the field that failed validation
+                if result.error_field == "amount":
+                    self.amount_entry.focus()
+                elif result.error_field == "description":
+                    self.description_entry.focus()
+                elif result.error_field == "date":
+                    self.month_combo.focus()
+                return
+            
+            # Get sanitized values from validation result
+            sanitized = result.sanitized_value
+            
+            # Create updated expense with pre-validated, cleaned data
             updated_expense = ExpenseData(
-                date=date_str,
-                amount=amount,
-                description=description
+                date=sanitized['date'],
+                amount=sanitized['amount'],
+                description=sanitized['description']
             )
             
             # Update expense
             self.on_update(updated_expense)
             self.dialog.destroy()
             
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid amount")
+        except Exception as e:
+            messagebox.showerror("Error", f"Unexpected error: {e}")
             self.amount_entry.focus()

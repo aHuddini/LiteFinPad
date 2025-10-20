@@ -16,6 +16,11 @@ from error_logger import log_error, log_info, log_warning, log_debug, error_logg
 from export_data import export_expenses
 from import_data import import_expense_backup
 from window_animation import create_window_animator
+from analytics import ExpenseAnalytics
+from data_manager import ExpenseDataManager
+from validation import InputValidation, ValidationPresets, ValidationResult
+from widgets.number_pad import NumberPadWidget
+import config
 
 # Set DPI awareness for Windows 11 crisp text rendering
 try:
@@ -236,9 +241,9 @@ class ExpenseTracker:
             screen_height = self.root.winfo_screenheight()
             
             # Position window near bottom-right corner (near taskbar)
-            window_width = 650
-            window_height = 850  # Compact height with reduced Recent Expenses
-            x = screen_width - window_width - 20
+            window_width = config.Window.WIDTH
+            window_height = config.Window.COMPACT_HEIGHT  # Compact height (850)
+            x = screen_width - window_width - config.Animation.SCREEN_MARGIN
             y = screen_height - window_height - 450  # Clear space for 3 rows of hidden system tray icons
             
             # Use the animator for smooth slide-in
@@ -363,49 +368,20 @@ class ExpenseTracker:
                 
     def load_data(self):
         """Load expense data from JSON file"""
-        log_info(f"Loading data from: {self.expenses_file}")
-        log_info(f"Data folder: {self.data_folder}")
-        log_info(f"Current month: {self.current_month}")
-        
-        if os.path.exists(self.expenses_file):
-            try:
-                with open(self.expenses_file, 'r') as f:
-                    data = json.load(f)
-                    self.expenses = data.get('expenses', [])
-                    # Calculate monthly_total from expenses (excluding future dates)
-                    today = datetime.now().date()
-                    self.monthly_total = sum(
-                        expense['amount'] for expense in self.expenses
-                        if datetime.strptime(expense['date'], '%Y-%m-%d').date() <= today
-                    )
-                    log_data_load("expenses", len(self.expenses), self.expenses_file)
-                    log_info(f"Monthly total calculated: ${self.monthly_total:.2f}")
-            except Exception as e:
-                log_error(f"Error loading data from {self.expenses_file}", e)
-                print(f"Error loading data: {e}")
-                self.expenses = []
-                self.monthly_total = 0.0
-        else:
-            log_warning(f"Expenses file not found: {self.expenses_file}")
-            log_info(f"Current working directory: {os.getcwd()}")
-            log_info(f"Files in current directory: {os.listdir('.')[:10]}")
-            self.expenses = []
-            self.monthly_total = 0.0
+        self.expenses, self.monthly_total = ExpenseDataManager.load_expenses(
+            self.expenses_file,
+            self.data_folder,
+            self.current_month
+        )
             
     def save_data(self):
         """Save expense data to JSON file"""
-        os.makedirs(self.data_folder, exist_ok=True)
-        data = {
-            'expenses': self.expenses,
-            'monthly_total': self.monthly_total
-        }
-        try:
-            with open(self.expenses_file, 'w') as f:
-                json.dump(data, f, indent=2)
-            log_info(f"Data saved: {len(self.expenses)} expenses to {self.expenses_file}")
-        except Exception as e:
-            log_error(f"Error saving data to {self.expenses_file}", e)
-            print(f"Error saving data: {e}")
+        ExpenseDataManager.save_expenses(
+            self.data_folder,
+            self.expenses_file,
+            self.expenses,
+            self.monthly_total
+        )
             
     def add_expense(self):
         """Add a new expense"""
@@ -470,7 +446,7 @@ class ExpenseTracker:
             if x < 0:
                 x = 20
                 
-            dialog.geometry(f"400x725+{x}+{y}")
+            dialog.geometry(f"{config.Dialog.ADD_EXPENSE_WIDTH}x{config.Dialog.ADD_EXPENSE_WITH_NUMPAD_HEIGHT}+{x}+{y}")
             
             # Content frame
             content_frame = ttk.Frame(dialog, padding="15")
@@ -480,7 +456,7 @@ class ExpenseTracker:
             title_label = ttk.Label(
                 content_frame,
                 text="Quick Add Expense",
-                font=('Segoe UI', 14, 'bold')
+                font=config.Fonts.HEADER
             )
             title_label.pack(pady=(0, 15))
             
@@ -492,16 +468,16 @@ class ExpenseTracker:
             month_label = ttk.Label(
                 info_frame,
                 text=current_month,
-                font=('Segoe UI', 10),
-                foreground='#1a1a1a'
+                font=config.Fonts.LABEL,
+                foreground=config.Colors.TEXT_BLACK
             )
             month_label.pack(anchor=tk.CENTER)
             
             total_label = ttk.Label(
                 info_frame,
                 text=f"Current Total: ${self.monthly_total:.2f}",
-                font=('Segoe UI', 10, 'bold'),
-                foreground='#107c10'
+                font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'),
+                foreground=config.Colors.GREEN_PRIMARY
             )
             total_label.pack(anchor=tk.CENTER, pady=(5, 0))
             
@@ -514,121 +490,17 @@ class ExpenseTracker:
             
             amount_var = tk.StringVar()
             
-            # Validation function for amount field (numeric only, max 2 decimals)
-            def validate_quick_add_amount(new_value):
-                """
-                Validate amount input in real-time
-                - Only allows digits, one decimal point
-                - Maximum 2 decimal places
-                - No upper limit on value
-                - Returns True if valid, False otherwise
-                """
-                if new_value == "":
-                    return True  # Allow empty field
-                
-                # Check if it only contains digits and at most one decimal point
-                if not all(c.isdigit() or c == '.' for c in new_value):
-                    return False
-                
-                # Check for only one decimal point
-                if new_value.count('.') > 1:
-                    return False
-                
-                # Check decimal places (max 2)
-                if '.' in new_value:
-                    parts = new_value.split('.')
-                    if len(parts[1]) > 2:
-                        return False
-                
-                # Check if it's a valid number format
-                try:
-                    if new_value != '.':
-                        float(new_value)
-                except ValueError:
-                    return False
-                
-                return True
+            # Register validation command (uses shared InputValidation module)
+            vcmd = (dialog.register(InputValidation.validate_amount), '%P')
             
-            # Register validation command
-            vcmd = (dialog.register(validate_quick_add_amount), '%P')
-            
-            amount_entry = ttk.Entry(amount_frame, textvariable=amount_var, font=('Segoe UI', 10),
+            amount_entry = ttk.Entry(amount_frame, textvariable=amount_var, font=config.Fonts.LABEL,
                                     validate='key', validatecommand=vcmd)
             amount_entry.pack(fill=tk.X, pady=(5, 0))
             amount_entry.focus_set()
             
-            # Number pad
-            pad_frame = ttk.LabelFrame(content_frame, text="", padding="10")
-            pad_frame.pack(fill=tk.X, pady=(0, 10))
-            
-            # Configure style for number pad buttons
-            style = ttk.Style()
-            style.configure("NumPad.TButton", 
-                           font=("Segoe UI", 12, "bold"),
-                           padding=(8, 10))
-            
-            # Button layout: 3x4 grid
-            buttons = [
-                ['7', '8', '9'],
-                ['4', '5', '6'],
-                ['1', '2', '3'],
-                ['0', '.', 'C']
-            ]
-            
-            # Helper functions for number pad
-            def on_number_click(value):
-                """Handle number pad button clicks"""
-                current = amount_var.get()
-                
-                # Handle decimal point
-                if value == '.':
-                    if '.' not in current:
-                        if not current:
-                            amount_var.set('0.')
-                        else:
-                            amount_var.set(current + '.')
-                    return
-                
-                # Handle digits (0-9)
-                # Check if adding this digit would exceed 2 decimal places
-                if '.' in current:
-                    integer_part, decimal_part = current.split('.')
-                    if len(decimal_part) >= 2:
-                        return  # Already have 2 decimal places
-                
-                # Max length validation (prevent excessive digits)
-                if len(current) >= 10:  # Max 10 characters (e.g., 9999999.99)
-                    return
-                
-                # If current value is "0", replace it
-                if current == '0':
-                    amount_var.set(value)
-                else:
-                    amount_var.set(current + value)
-            
-            def on_clear_click():
-                """Clear the amount field"""
-                amount_var.set('')
-            
-            # Create number pad buttons
-            for row_idx, row in enumerate(buttons):
-                pad_frame.columnconfigure(0, weight=1)
-                pad_frame.columnconfigure(1, weight=1)
-                pad_frame.columnconfigure(2, weight=1)
-                
-                for col_idx, btn_text in enumerate(row):
-                    if btn_text == 'C':
-                        btn = ttk.Button(pad_frame, text=btn_text, 
-                                       command=on_clear_click,
-                                       style="NumPad.TButton",
-                                       width=2)
-                    else:
-                        btn = ttk.Button(pad_frame, text=btn_text,
-                                       command=lambda t=btn_text: on_number_click(t),
-                                       style="NumPad.TButton",
-                                       width=2)
-                    
-                    btn.grid(row=row_idx, column=col_idx, padx=5, pady=5, sticky=(tk.W, tk.E))
+            # Number pad widget
+            number_pad = NumberPadWidget(content_frame, amount_var)
+            number_pad.pack(fill=tk.X, pady=(0, 10))
             
             # Description field
             desc_frame = ttk.Frame(content_frame)
@@ -637,56 +509,65 @@ class ExpenseTracker:
             desc_label = ttk.Label(desc_frame, text="Description:")
             desc_label.pack(anchor=tk.W)
             
-            desc_entry = ttk.Entry(desc_frame, font=('Segoe UI', 10))
+            desc_entry = ttk.Entry(desc_frame, font=config.Fonts.LABEL)
             desc_entry.pack(fill=tk.X, pady=(5, 0))
             
             # Buttons frame
             button_frame = ttk.Frame(content_frame)
             button_frame.pack(fill=tk.X)
             
+            # Flag to prevent auto-close when showing messageboxes
+            dialog._showing_messagebox = False
+            
             def on_add():
                 """Handle add button click"""
                 try:
-                    # Validate amount
-                    amount_str = amount_var.get().strip()
-                    if not amount_str:
-                        messagebox.showerror("Error", "Please enter an amount", parent=dialog)
+                    # Validate all fields using preset validator
+                    result = ValidationPresets.quick_add_expense(
+                        amount_var.get(),
+                        desc_entry.get()
+                    )
+                    
+                    # If validation failed, show error and focus appropriate field
+                    if not result:
+                        dialog._showing_messagebox = True
+                        messagebox.showerror("Validation Error", result.error_message, parent=dialog)
+                        dialog._showing_messagebox = False
+                        dialog.focus_force()
+                        
+                        # Auto-focus the field that failed validation
+                        if result.error_field == "amount":
+                            amount_entry.focus_set()
+                        elif result.error_field == "description":
+                            desc_entry.focus_set()
                         return
                     
-                    try:
-                        amount = float(amount_str)
-                        if amount <= 0:
-                            messagebox.showerror("Error", "Amount must be greater than 0", parent=dialog)
-                            return
-                    except ValueError:
-                        messagebox.showerror("Error", "Please enter a valid number", parent=dialog)
-                        return
+                    # Get sanitized values from validation result
+                    sanitized = result.sanitized_value
                     
-                    # Validate description
-                    description = desc_entry.get().strip()
-                    if not description:
-                        messagebox.showerror("Error", "Please enter a description", parent=dialog)
-                        return
-                    
-                    # Add expense
+                    # Add expense with pre-validated, cleaned data
                     expense_dict = {
                         'date': datetime.now().strftime("%Y-%m-%d"),
-                        'amount': amount,
-                        'description': description
+                        'amount': sanitized['amount'],
+                        'description': sanitized['description']
                     }
                     
                     self.expenses.append(expense_dict)
-                    self.monthly_total += amount
+                    self.monthly_total += sanitized['amount']
                     self.save_data()
                     self.gui.update_display()
                     self.update_tray_tooltip()
                     
-                    log_info(f"Quick add expense: ${amount:.2f} - {description}")
+                    log_info(f"Quick add expense: ${sanitized['amount']:.2f} - {sanitized['description']}")
                     dialog.destroy()
                     
                 except Exception as e:
                     log_error("Error in quick add", e)
+                    dialog._showing_messagebox = True
                     messagebox.showerror("Error", f"Failed to add expense: {e}", parent=dialog)
+                    dialog._showing_messagebox = False
+                    dialog.focus_force()
+                    amount_entry.focus_set()
             
             def on_cancel():
                 """Handle cancel button click"""
@@ -762,6 +643,11 @@ class ExpenseTracker:
                         log_info("[DIALOG] Dialog no longer exists, aborting close check")
                         return
                     
+                    # Don't close if we're currently showing a messagebox
+                    if hasattr(dialog, '_showing_messagebox') and dialog._showing_messagebox:
+                        log_info("[DIALOG] Messagebox is showing - keeping dialog open")
+                        return
+                    
                     log_info("[DIALOG] Dialog exists, checking focus location")
                     focused = dialog.focus_get()
                     log_info(f"[DIALOG] Currently focused widget: {focused}")
@@ -773,7 +659,20 @@ class ExpenseTracker:
                         self._quick_add_dialog_open = False
                         log_info("[DIALOG] Dialog destroyed and flag set to False")
                     elif focused.winfo_toplevel() != dialog:
-                        log_info(f"[DIALOG] Focus is in different window ({focused.winfo_toplevel()}) - DESTROYING DIALOG")
+                        # Check if focus is on a messagebox (child of our dialog)
+                        # Messageboxes have parent=dialog, so they're transient windows
+                        focused_top = focused.winfo_toplevel()
+                        try:
+                            # Check if the focused toplevel is transient for our dialog
+                            # This indicates it's a child window (like a messagebox)
+                            transient_master = focused_top.winfo_toplevel().master
+                            if transient_master == dialog:
+                                log_info(f"[DIALOG] Focus is on child window (messagebox) - keeping dialog open")
+                                return
+                        except:
+                            pass  # If checking master fails, continue with normal logic
+                        
+                        log_info(f"[DIALOG] Focus is in different window ({focused_top}) - DESTROYING DIALOG")
                         dialog.destroy()
                         self._quick_add_dialog_open = False
                         log_info("[DIALOG] Dialog destroyed and flag set to False")
@@ -874,171 +773,40 @@ class ExpenseTracker:
             
     def get_day_progress(self):
         """Get current day progress in the month"""
-        today = datetime.now()
-        current_day = today.day
-        total_days = calendar.monthrange(today.year, today.month)[1]
-        return current_day, total_days
+        return ExpenseAnalytics.calculate_day_progress()
         
     def get_week_progress(self):
         """Get current week progress in the month"""
-        today = datetime.now()
-        current_day = today.day
-        
-        # Base week number (1 for days 1-7, 2 for days 8-14, etc.)
-        base_week = ((current_day - 1) // 7) + 1
-        
-        # Position within the week (0-6 for the 7 days)
-        day_in_week = (current_day - 1) % 7
-        
-        # Decimal component (0.0 for first day, 0.1 for second, ... 0.9 for last day)
-        week_decimal = day_in_week / 10.0
-        
-        precise_week = base_week + week_decimal
-        
-        # Total weeks in month (estimate based on total days)
-        total_days = calendar.monthrange(today.year, today.month)[1]
-        total_weeks = (total_days // 7) + (1 if total_days % 7 > 0 else 0)
-        
-        return precise_week, total_weeks
+        return ExpenseAnalytics.calculate_week_progress()
         
     def get_daily_average(self):
         """Calculate average spending per day: (month total ÷ days elapsed)"""
-        if not self.expenses:
-            return 0.0, 0
-            
-        # Get current month's expenses (excluding future dates)
-        today = datetime.now()
-        month_start = today.replace(day=1)
-        month_expenses = [e for e in self.expenses 
-                         if datetime.strptime(e['date'], '%Y-%m-%d') >= month_start
-                         and datetime.strptime(e['date'], '%Y-%m-%d').date() <= today.date()]
-        
-        monthly_total = sum(e['amount'] for e in month_expenses)
-        days_elapsed = today.day
-        
-        # Average per day = monthly total ÷ days elapsed
-        avg_per_day = monthly_total / days_elapsed if days_elapsed > 0 else 0
-        
-        return avg_per_day, days_elapsed
+        return ExpenseAnalytics.calculate_daily_average(self.expenses)
             
     def get_weekly_average(self):
         """Calculate average spending per week: (month total ÷ weeks elapsed in month)"""
-        if not self.expenses:
-            return 0.0, 0
-            
-        # Get current month's expenses (excluding future dates)
-        today = datetime.now()
-        month_start = today.replace(day=1)
-        month_expenses = [e for e in self.expenses 
-                         if datetime.strptime(e['date'], '%Y-%m-%d') >= month_start
-                         and datetime.strptime(e['date'], '%Y-%m-%d').date() <= today.date()]
-        
-        monthly_total = sum(e['amount'] for e in month_expenses)
-        
-        # Calculate weeks elapsed: (current day - 1) ÷ 7 + 1
-        # This gives us the week number we're in (1, 2, 3, 4, etc.)
-        current_day = today.day
-        weeks_elapsed = ((current_day - 1) // 7) + 1
-        
-        # Average per week = monthly total ÷ weeks elapsed
-        avg_per_week = monthly_total / weeks_elapsed if weeks_elapsed > 0 else 0
-        
-        return avg_per_week, weeks_elapsed
+        return ExpenseAnalytics.calculate_weekly_average(self.expenses)
             
     def get_weekly_pace(self):
         """Calculate current week's spending pace: (this week's total ÷ days elapsed this week)"""
-        if not self.expenses:
-            return 0.0, 0
-            
-        # Get current week's expenses (Monday to today, excluding future dates)
-        today = datetime.now()
-        week_start = today - timedelta(days=today.weekday())  # Monday of current week
-        week_expenses = [e for e in self.expenses 
-                        if datetime.strptime(e['date'], '%Y-%m-%d').date() >= week_start.date()
-                        and datetime.strptime(e['date'], '%Y-%m-%d').date() <= today.date()]
-        
-        weekly_total = sum(e['amount'] for e in week_expenses)
-        days_elapsed = (today - week_start).days + 1  # Days from Monday to today (inclusive)
-        
-        # Pace = weekly total ÷ days elapsed in current week
-        pace_per_day = weekly_total / days_elapsed if days_elapsed > 0 else 0
-        
-        # Return pace and days for context
-        return pace_per_day, days_elapsed
+        return ExpenseAnalytics.calculate_weekly_pace(self.expenses)
             
     def get_monthly_trend_analysis(self):
         """Get previous month's total and name"""
-        # Get previous month date and name
+        # Get previous month key
         prev_month_date = datetime.now().replace(day=1) - timedelta(days=1)
         prev_month_key = prev_month_date.strftime('%Y-%m')
-        prev_month_name = prev_month_date.strftime('%B %Y')  # e.g., "September 2025"
-        
-        # Check if we have previous month data file
         prev_data_folder = f"data_{prev_month_key}"
-        prev_expenses_file = os.path.join(prev_data_folder, 'expenses.json')
         
-        if os.path.exists(prev_expenses_file):
-            try:
-                with open(prev_expenses_file, 'r') as f:
-                    data = json.load(f)
-                    # Handle both old format (list) and new format (dict with 'expenses' key)
-                    if isinstance(data, list):
-                        prev_expenses = data
-                    elif isinstance(data, dict):
-                        prev_expenses = data.get('expenses', [])
-                    else:
-                        prev_expenses = []
-                    
-                    prev_total = sum(e['amount'] for e in prev_expenses)
-                    return f"${prev_total:.2f}", prev_month_name
-            except Exception as e:
-                log_error("Error loading previous month data", e)
-                return "$0.00", prev_month_name
-        else:
-            return "$0.00", prev_month_name
+        return ExpenseAnalytics.calculate_monthly_trend(prev_data_folder)
     
     def get_median_expense(self):
         """Calculate median expense amount (typical expense size)"""
-        from datetime import datetime
-        today = datetime.now()
-        
-        # Filter out future expenses
-        past_expenses = [e for e in self.expenses 
-                        if datetime.strptime(e['date'], '%Y-%m-%d').date() <= today.date()]
-        
-        if not past_expenses:
-            return 0.0, 0
-        
-        # Get all expense amounts and sort them
-        amounts = sorted([e['amount'] for e in past_expenses])
-        count = len(amounts)
-        
-        # Calculate median
-        if count % 2 == 0:
-            # Even number: average of two middle values
-            median = (amounts[count // 2 - 1] + amounts[count // 2]) / 2
-        else:
-            # Odd number: middle value
-            median = amounts[count // 2]
-        
-        return median, count
+        return ExpenseAnalytics.calculate_median_expense(self.expenses)
     
     def get_largest_expense(self):
         """Get the largest expense amount and description"""
-        from datetime import datetime
-        today = datetime.now()
-        
-        # Filter out future expenses
-        past_expenses = [e for e in self.expenses 
-                        if datetime.strptime(e['date'], '%Y-%m-%d').date() <= today.date()]
-        
-        if not past_expenses:
-            return 0.0, "No expenses"
-        
-        # Find the largest expense
-        largest = max(past_expenses, key=lambda e: e['amount'])
-        
-        return largest['amount'], largest['description']
+        return ExpenseAnalytics.calculate_largest_expense(self.expenses)
         
     def run(self):
         """Run the application"""
