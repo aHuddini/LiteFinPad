@@ -76,19 +76,22 @@ class TrayIcon:
             try:
                 # Only handle tray-specific messages, let everything else pass through
                 if msg == tray_instance.callback_message:
-                    log_info(f"[TRAY] Window proc: tray message! lparam={lparam:x}, timestamp={time.time():.3f}")
+                    # Log mouse movements at DEBUG level to reduce noise (0x200 = WM_MOUSEMOVE)
+                    if lparam == 0x200:
+                        log_debug(f"[TRAY] Mouse move: lparam={lparam:x}")
+                    else:
+                        log_info(f"[TRAY] Window proc: tray message! lparam={lparam:x}, timestamp={time.time():.3f}")
+                    
                     if lparam == WM_LBUTTONDBLCLK:
                         log_info("[TRAY] DOUBLE-CLICK detected in window proc")
                         # NOTE: Intermittent crash reported on 2025-10-19 (not reproducible)
                         # May be related to timing, dialog init, or focus management
                         # Monitor for patterns: quick successive clicks, focus states, etc.
                         tray_instance.on_double_click()
-                        log_info("[TRAY] on_double_click() returned successfully")
                         return 0
                     elif lparam == WM_LBUTTONUP:
-                        log_info("[TRAY] LEFT-CLICK detected in window proc")
+                        log_debug("[TRAY] Left-click detected")
                         tray_instance.on_left_click()
-                        log_info("[TRAY] on_left_click() returned successfully")
                         return 0
                     elif lparam == WM_RBUTTONUP:
                         log_info("[TRAY] RIGHT-CLICK detected in window proc")
@@ -346,39 +349,30 @@ class TrayIcon:
         """Handle left click on tray icon - toggles window (delayed to detect double-click)"""
         import threading
         
-        log_info(f"[TRAY] on_left_click() called at {time.time():.3f}")
-        log_info(f"[TRAY] Double-click detected flag: {self.double_click_detected}")
-        log_info(f"[TRAY] Pending single-click timer: {self.pending_single_click_timer}")
+        log_debug(f"[TRAY] Left click detected (double-click flag: {self.double_click_detected})")
         
         # If double-click was just detected, ignore this click
         if self.double_click_detected:
-            log_info("[TRAY] Left-click IGNORED - double-click in progress")
+            log_debug("[TRAY] Left-click ignored - double-click in progress")
             self.double_click_detected = False
             return
         
         # Cancel any pending single-click
         if self.pending_single_click_timer:
-            log_info("[TRAY] Cancelling previous pending single-click timer")
             self.pending_single_click_timer.cancel()
             self.pending_single_click_timer = None
         
         # Delay the single-click action to see if a double-click follows
         def execute_single_click():
-            log_info(f"[TRAY] === Executing delayed single-click at {time.time():.3f} ===")
+            log_info(f"[TRAY] Single-click: toggling window")
             if self.toggle_callback:
                 try:
-                    log_info("[TRAY] Calling toggle_callback()")
                     self.toggle_callback()
-                    log_info("[TRAY] toggle_callback() completed successfully")
                 except Exception as e:
                     log_error(f"[TRAY] ERROR in toggle callback: {e}", e)
-            else:
-                log_info("[TRAY] No toggle_callback set")
         
-        log_info(f"[TRAY] Scheduling single-click with {self.double_click_window}s delay")
         self.pending_single_click_timer = threading.Timer(self.double_click_window, execute_single_click)
         self.pending_single_click_timer.start()
-        log_info("[TRAY] Single-click timer started")
     
     def on_right_click(self):
         """Handle right click on tray icon - context menu (future)"""
@@ -393,29 +387,21 @@ class TrayIcon:
     
     def on_double_click(self):
         """Handle double click on tray icon - opens quick add dialog"""
-        log_info(f"[TRAY] === on_double_click() called at {time.time():.3f} ===")
-        log_info(f"[TRAY] Pending single-click timer before cancel: {self.pending_single_click_timer}")
+        log_info(f"[TRAY] Double-click: opening quick add")
         
         # Cancel any pending single-click action
         if self.pending_single_click_timer:
-            log_info("[TRAY] Cancelling pending single-click timer")
             self.pending_single_click_timer.cancel()
             self.pending_single_click_timer = None
-            log_info("[TRAY] Timer cancelled")
         
         # Mark that double-click was detected to ignore subsequent single-clicks
         self.double_click_detected = True
-        log_info("[TRAY] Double-click detected flag set to True")
         
         if self.quick_add_callback:
             try:
-                log_info("[TRAY] Calling quick_add_callback()")
                 self.quick_add_callback()
-                log_info("[TRAY] quick_add_callback() completed successfully")
             except Exception as e:
                 log_error(f"[TRAY] ERROR in quick_add callback: {e}", e)
-        else:
-            log_info("[TRAY] No quick_add_callback set")
     
     def start(self):
         """Start the tray icon"""

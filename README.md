@@ -1,10 +1,10 @@
-# 💰 LiteFinPad v3.5
+# 💰 LiteFinPad v3.5.2
 
 <div align="center">
 
 **A lightweight, offline-first Windows expense tracker with modern UI and powerful features**
 
-![Version](https://img.shields.io/badge/version-3.5-blue.svg)
+![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.14-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
@@ -25,28 +25,59 @@
 
 ---
 
-## 🆕 What's New in v3.5
+## 🆕 What's New in v3.5.2
 
-### Major Architectural Refactoring (October 2025)
+### Critical Threading Fix for Quick Add Dialog (October 2025)
+
+**Critical Fixes:**
+- 🐛 **Queue-Based Threading System**: Resolved critical GIL threading issue with Quick Add dialog
+  - **Problem**: Tray icon's Win32 message loop runs in background thread; Tkinter is not thread-safe
+  - **Solution**: Implemented thread-safe queue system for GUI operations
+  - **Impact**: Quick Add dialog now works reliably without threading conflicts or crashes
+  - **Technical**: Background thread posts requests to queue; main GUI thread processes them safely
+  - **Bonus**: Restored auto-close behavior when clicking outside dialog
+  - All test scenarios verified (double-click, add expense, cancel, multiple dialogs, threading stress tests)
+
+**Why This Matters:**
+The Quick Add dialog (double-click tray icon) is the fastest way to log expenses. This fix solves a fundamental threading incompatibility between Windows OS interactions (Win32 message loop) and Python's Tkinter GUI framework, ensuring reliable operation on all systems.
+
+---
+
+## 📋 Recent Updates (v3.5.1)
+
+### Dialog System Refactoring & Logging Optimization
 
 **New Features:**
-- 🎨 **Centralized Configuration**: New `config.py` module with ~50+ constants for easier theming and customization
-- 🎯 **Improved Context Menu**: "Delete Expense" moved to bottom with red color and bold font for visual safety
+- 🪟 **Dialog Helper Module**: Centralized dialog creation, positioning, and binding logic
+- 🔍 **Debug Mode Toggle**: Optional verbose logging via `settings.ini` for troubleshooting
+
+**Performance Improvements:**
+- 📝 **90% Log Reduction**: Comprehensive 3-step logging optimization
+  - Mouse movement logs moved to DEBUG level (~99% reduction)
+  - Window/click detection simplified (~87% reduction)
+  - Export operations streamlined (~75% reduction)
+- 🖥️ **Dialog Display Fixes**: Minor UI improvements for better element visibility
+
+**Technical:**
+- New `dialog_helpers.py` module with 8 standardized methods
+- Intelligent logging system with user-configurable verbosity
+- All dialogs except Quick Add (GIL threading) refactored for consistency
+
+**Known Issues:**
+- **Quick Add Dialog**: Cannot use standard `DialogHelper` refactoring due to GIL threading requirements (runs in tray icon's background thread)
+
+---
+
+## 🏗️ What Was New in v3.5
+
+### Major Architectural Refactoring (October 2025)
 
 **Code Quality Improvements:**
 - 📦 **5 New Modules**: Analytics, Data Manager, Validation, NumberPad Widget, Config
 - 📉 **22.5% Code Reduction**: `main.py` reduced from 1,062 to 823 lines
+- 🎨 **Centralized Configuration**: New `config.py` module with ~50+ constants
+- 🎯 **Improved Context Menu**: "Delete Expense" moved to bottom with red color
 - 🔧 **Better Maintainability**: Separation of concerns with modular architecture
-- 🚀 **Foundation for Future**: Theme system, dark mode, and customization support
-
-**Technical:**
-- Added ~633 lines of new modular code
-- Improved testability with static methods
-- Reduced code duplication through structured validation
-- First reusable UI component (NumberPad Widget)
-
-**Known Issues:**
-- None reported for v3.5
 
 ---
 
@@ -80,8 +111,8 @@
 ### Option 1: Download Pre-Built Executable (Recommended)
 
 1. Go to the [**Releases**](../../releases) page
-2. Download the latest `LiteFinPad_v3.4.zip`
-3. Extract and run `LiteFinPad_v3.4.exe`
+2. Download the latest `LiteFinPad_v3.5.2.zip`
+3. Extract and run `LiteFinPad_v3.5.2.exe`
 4. Look for the icon in your system tray!
 
 **No Python installation required. Just download and run.**

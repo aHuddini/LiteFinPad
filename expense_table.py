@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Callable
 from validation import InputValidation, ValidationPresets, ValidationResult
 import config
+from dialog_helpers import DialogHelper
 
 
 def validate_amount_input(new_value):
@@ -379,29 +380,27 @@ class ExpenseAddDialog:
     def __init__(self, parent, on_add: Callable[[ExpenseData], None]):
         self.on_add = on_add
         
-        # Create dialog window
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title("Add New Expense")
-        self.dialog.resizable(False, False)
-        self.dialog.transient(parent)
-        self.dialog.configure(bg=config.Colors.BG_DIALOG)
-        
-        # IMPORTANT: Withdraw immediately to prevent flash at top-left corner
-        self.dialog.withdraw()
+        # Create dialog using DialogHelper
+        self.dialog = DialogHelper.create_dialog(
+            parent,
+            "Add New Expense",
+            config.Dialog.ADD_EXPENSE_WIDTH,
+            config.Dialog.ADD_EXPENSE_HEIGHT
+        )
         
         # Setup GUI first (while hidden)
         self.setup_dialog()
         
         # Position the dialog at lower right corner
-        self.center_dialog(parent)
+        DialogHelper.position_lower_right(
+            self.dialog,
+            parent,
+            config.Dialog.ADD_EXPENSE_WIDTH,
+            config.Dialog.ADD_EXPENSE_HEIGHT
+        )
         
-        # Show the dialog now that it's fully configured and positioned
-        self.dialog.deiconify()
-        
-        # Ensure dialog is on top and focused
-        self.dialog.lift()
-        self.dialog.focus_force()
-        self.dialog.grab_set()  # Make dialog modal
+        # Show the dialog
+        DialogHelper.show_dialog(self.dialog)
         
         # Auto-focus amount field after dialog is fully rendered
         # Using after() ensures the widget is ready to receive focus
@@ -418,11 +417,7 @@ class ExpenseAddDialog:
             self.add_expense()
             return "break"  # Prevent default behavior
             
-        def handle_escape(event):
-            self.dialog.destroy()
-            return "break"
-            
-        self.dialog.bind('<Escape>', handle_escape)
+        DialogHelper.bind_escape_to_close(self.dialog)
         
         # Bind Enter to move between fields (amount → description → submit)
         self.amount_entry.bind('<Return>', handle_amount_enter)
@@ -539,18 +534,6 @@ class ExpenseAddDialog:
             options.append(display)
         
         return options
-        
-    def center_dialog(self, parent):
-        """Position dialog at lower right corner of parent window"""
-        parent.update_idletasks()
-        # Position at lower right corner - perfectly snapped to corner
-        x = parent.winfo_x() + parent.winfo_width() - 400  # No padding - touch right edge
-        y = parent.winfo_y() + parent.winfo_height() - 670  # No padding - touch bottom edge
-        # Adjust Y if dialog would go off-screen
-        screen_height = parent.winfo_screenheight()
-        if y < 0:
-            y = 20  # Small margin from top
-        self.dialog.geometry(f"{config.Dialog.ADD_EXPENSE_WIDTH}x{config.Dialog.ADD_EXPENSE_HEIGHT}+{x}+{y}")
         
     def setup_dialog(self):
         """Setup dialog components with clean, simple design"""
@@ -702,53 +685,72 @@ class ExpenseEditDialog:
         self.expense = expense
         self.on_update = on_update
         
-        # Create dialog window
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title("Edit Expense")
-        self.dialog.geometry(f"{config.Dialog.EDIT_EXPENSE_WIDTH}x{config.Dialog.EDIT_EXPENSE_HEIGHT}")
-        self.dialog.resizable(False, False)
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
-        self.dialog.configure(bg=config.Colors.BG_DIALOG)
-        
-        # Position the dialog at lower right corner
-        self.center_dialog(parent)
+        # Create dialog using DialogHelper
+        self.dialog = DialogHelper.create_dialog(
+            parent,
+            "Edit Expense",
+            config.Dialog.EDIT_EXPENSE_WIDTH,
+            config.Dialog.EDIT_EXPENSE_HEIGHT
+        )
         
         # Setup GUI
         self.setup_dialog()
         
+        # Center the dialog on parent
+        DialogHelper.center_on_parent(
+            self.dialog,
+            parent,
+            config.Dialog.EDIT_EXPENSE_WIDTH,
+            config.Dialog.EDIT_EXPENSE_HEIGHT
+        )
+        
+        # Show the dialog
+        DialogHelper.show_dialog(self.dialog)
+        
         # Focus on amount field and select all
         self.amount_entry.focus()
         self.amount_entry.select_range(0, tk.END)
-        
-        # Ensure dialog is on top and focused
-        self.dialog.lift()
-        self.dialog.focus_force()
-        self.dialog.grab_set()  # Make dialog modal
         
         # Bind keyboard shortcuts - more robust approach
         def handle_enter(event):
             self.update_expense()
             return "break"  # Prevent default behavior
             
-        def handle_escape(event):
-            self.dialog.destroy()
-            return "break"
-            
         self.dialog.bind('<Return>', handle_enter)
-        self.dialog.bind('<Escape>', handle_escape)
+        DialogHelper.bind_escape_to_close(self.dialog)
         
         # Also bind to the entry fields
         self.amount_entry.bind('<Return>', handle_enter)
         self.description_entry.bind('<Return>', handle_enter)
-        self.month_combo.bind('<Return>', handle_enter)
+        self.date_combo.bind('<Return>', handle_enter)
+    
+    def generate_date_options(self):
+        """Generate date options for the expense's month"""
+        try:
+            expense_date = datetime.strptime(self.expense.date, "%Y-%m-%d")
+        except ValueError:
+            # Fallback to current date if parsing fails
+            expense_date = datetime.now()
         
-    def center_dialog(self, parent):
-        """Center dialog on parent window"""
-        parent.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() // 2) - (config.Dialog.EDIT_EXPENSE_WIDTH // 2)
-        y = parent.winfo_y() + (parent.winfo_height() // 2) - (config.Dialog.EDIT_EXPENSE_HEIGHT // 2)
-        self.dialog.geometry(f"{config.Dialog.EDIT_EXPENSE_WIDTH}x{config.Dialog.EDIT_EXPENSE_HEIGHT}+{x}+{y}")
+        expense_day = expense_date.day
+        expense_month = expense_date.strftime("%B")  # e.g., "October"
+        
+        # Get the last day of the expense's month
+        from calendar import monthrange
+        last_day = monthrange(expense_date.year, expense_date.month)[1]
+        
+        options = []
+        for day in range(1, last_day + 1):
+            # Format: "1 - October 1", "2 - October 2", etc.
+            # Add indicator if it's the current day of the expense
+            if day == expense_day:
+                display = f"{day} - {expense_month} {day} (Current)"
+            else:
+                display = f"{day} - {expense_month} {day}"
+            
+            options.append(display)
+        
+        return options
         
     def setup_dialog(self):
         """Setup dialog components"""
@@ -784,39 +786,45 @@ class ExpenseEditDialog:
                                           width=25, font=config.Fonts.ENTRY)
         self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        # Date field - Month dropdown
-        ttk.Label(main_frame, text="Month:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        # Date field - Day dropdown
+        ttk.Label(main_frame, text="Date:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
         
-        # Create month dropdown
-        self.month_var = tk.StringVar()
-        month_options = [
-            "1 - January", "2 - February", "3 - March", "4 - April",
-            "5 - May", "6 - June", "7 - July", "8 - August",
-            "9 - September", "10 - October", "11 - November", "12 - December"
-        ]
+        # Generate date options for the expense's month
+        self.date_var = tk.StringVar()
+        date_options = self.generate_date_options()
         
-        # Set to the month from the existing expense
+        # Set to the day from the existing expense
         try:
             expense_date = datetime.strptime(self.expense.date, "%Y-%m-%d")
-            month_num = expense_date.month
-            month_name = expense_date.strftime('%B')
-            self.month_var.set(f"{month_num} - {month_name}")
-        except ValueError:
-            # Fallback to current month if date parsing fails
-            current_month = datetime.now().month
-            self.month_var.set(f"{current_month} - {datetime.now().strftime('%B')}")
+            day_num = expense_date.day
+            # Find and set the matching option (day number - 1 for zero-based index)
+            self.date_var.set(date_options[day_num - 1])
+        except (ValueError, IndexError):
+            # Fallback to first day if date parsing fails
+            self.date_var.set(date_options[0])
         
-        self.month_combo = ttk.Combobox(main_frame, textvariable=self.month_var, 
-                                       values=month_options, state="readonly", 
-                                       width=22, font=("Segoe UI", 11))
-        self.month_combo.grid(row=6, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        # Configure custom style for date combobox
+        style = ttk.Style()
+        style.map('DateCombo.TCombobox',
+                  fieldbackground=[('readonly', config.Colors.DATE_BG)],
+                  foreground=[('readonly', config.Colors.DATE_FG)],
+                  selectbackground=[('readonly', config.Colors.DATE_BG)],
+                  selectforeground=[('readonly', config.Colors.DATE_FG)])
+        style.configure('DateCombo.TCombobox',
+                       foreground=config.Colors.DATE_FG,
+                       fieldbackground=config.Colors.DATE_BG)
+        
+        self.date_combo = ttk.Combobox(main_frame, textvariable=self.date_var, 
+                                       values=date_options, state="readonly", 
+                                       width=22, font=("Segoe UI", 11), style='DateCombo.TCombobox')
+        self.date_combo.grid(row=6, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=7, column=0, pady=(10, 0))
         
         # Update button
-        update_button = ttk.Button(button_frame, text="Update Expense", 
+        update_button = ttk.Button(button_frame, text="Update", 
                                  command=self.update_expense)
         update_button.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -828,22 +836,30 @@ class ExpenseEditDialog:
     def update_expense(self):
         """Update the expense with validation"""
         try:
-            # Parse date from month selection
-            month_str = self.month_var.get().strip()
+            # Parse date from day selection
+            date_selection = self.date_var.get().strip()
             try:
-                # Extract month number from selection (e.g., "1 - January" -> 1)
-                month_num = int(month_str.split(' - ')[0])
-                current_year = datetime.now().year
-                current_day = datetime.now().day
+                # Extract day number from selection (e.g., "12 - October 12 (Current)" -> 12)
+                day_num = int(date_selection.split(' - ')[0])
+                
+                # Get the original expense's year and month to preserve them
+                try:
+                    expense_date = datetime.strptime(self.expense.date, "%Y-%m-%d")
+                    expense_year = expense_date.year
+                    expense_month = expense_date.month
+                except ValueError:
+                    # Fallback to current year/month if parsing fails
+                    expense_year = datetime.now().year
+                    expense_month = datetime.now().month
                 
                 # Create date string in YYYY-MM-DD format
-                date_str = f"{current_year}-{month_num:02d}-{current_day:02d}"
+                date_str = f"{expense_year}-{expense_month:02d}-{day_num:02d}"
                 
                 # Validate the date format
                 datetime.strptime(date_str, "%Y-%m-%d")
             except (ValueError, IndexError):
-                messagebox.showerror("Validation Error", "Please select a valid month")
-                self.month_combo.focus()
+                messagebox.showerror("Validation Error", "Please select a valid date")
+                self.date_combo.focus()
                 return
             
             # Validate all fields using preset validator

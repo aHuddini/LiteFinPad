@@ -6,6 +6,7 @@ Error logging system for LiteFinPad
 import logging
 import os
 from datetime import datetime
+import configparser
 
 class ErrorLogger:
     """Centralized error logging for LiteFinPad"""
@@ -14,15 +15,43 @@ class ErrorLogger:
         self.log_file = log_file
         self.setup_logger()
     
+    def _load_debug_setting(self):
+        """
+        Load debug mode setting from settings.ini
+        
+        Returns:
+            logging level (INFO or DEBUG) based on settings.ini
+        """
+        config = configparser.ConfigParser()
+        settings_file = 'settings.ini'
+        
+        # Default to INFO level
+        log_level = logging.INFO
+        
+        if os.path.exists(settings_file):
+            try:
+                config.read(settings_file)
+                debug_mode = config.getboolean('Logging', 'debug_mode', fallback=False)
+                if debug_mode:
+                    log_level = logging.DEBUG
+            except Exception:
+                # Silently fall back to INFO level if config reading fails
+                pass
+        
+        return log_level
+    
     def setup_logger(self):
         """Setup the logging configuration"""
         # Create logs directory if it doesn't exist
         os.makedirs("logs", exist_ok=True)
         log_path = os.path.join("logs", self.log_file)
         
+        # Determine log level from settings.ini
+        log_level = self._load_debug_setting()
+        
         # Configure logging
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(log_path, mode='a', encoding='utf-8'),
@@ -31,8 +60,18 @@ class ErrorLogger:
         )
         
         self.logger = logging.getLogger('LiteFinPad')
+        
+        # Set the logger and handlers to use the configured level
+        self.logger.setLevel(log_level)
+        for handler in self.logger.handlers:
+            handler.setLevel(log_level)
+        
         self.logger.info("=" * 50)
         self.logger.info("LiteFinPad Error Logger Started")
+        if log_level == logging.DEBUG:
+            self.logger.info("Debug mode ENABLED (via settings.ini)")
+        else:
+            self.logger.info("Normal logging mode (INFO level)")
         self.logger.info("=" * 50)
     
     def log_error(self, message, exception=None):
@@ -91,7 +130,7 @@ class ErrorLogger:
     def log_library_check(self, library_name, available):
         """Log library availability check"""
         status = "AVAILABLE" if available else "MISSING"
-        self.logger.info(f"Library check: {library_name} = {status}")
+        self.logger.debug(f"Library check: {library_name} = {status}")
     
     def log_data_load(self, data_type, count, source):
         """Log data loading"""

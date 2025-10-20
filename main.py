@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 import calendar
 import threading
+import queue
 import sys
 import time
 # PIL removed - icon.ico is bundled directly by PyInstaller
@@ -50,6 +51,7 @@ class ExpenseTracker:
         self.monthly_total = 0.0
         self.current_page = "main"  # Track current page
         self.open_dialogs = []  # Track open dialogs for proper cleanup
+        self.gui_queue = queue.Queue()  # Thread-safe queue for GUI operations from background threads
         self.is_hidden = True  # Track if window is intentionally hidden (starts hidden)
         self.load_data()
         
@@ -227,14 +229,12 @@ class ExpenseTracker:
     def show_window(self):
         """Show the main window positioned near taskbar with slide animation"""
         try:
-            log_info(f"[WINDOW] === show_window() called at {time.time():.3f} ===")
-            log_info(f"[WINDOW] Current hidden state: {self.is_hidden}")
+            log_info(f"[WINDOW] Showing window")
+            log_debug(f"[WINDOW] Hidden state: {self.is_hidden}")
             
             # Refresh display to update date-based filtering (e.g., future expenses becoming current)
-            log_info("[WINDOW] Updating recent expenses and display")
             self.gui.update_recent_expenses()
             self.gui.update_display()
-            log_info("[WINDOW] Display updated")
             
             # Get screen dimensions
             screen_width = self.root.winfo_screenwidth()
@@ -248,27 +248,23 @@ class ExpenseTracker:
             
             # Use the animator for smooth slide-in
             self.animator.slide_in(x, y, window_width, window_height)
-            log_info("[WINDOW] Setting hidden state to False")
             self.is_hidden = False
             
             # Bring to front
-            log_info("[WINDOW] Bringing window to front with lift() and focus_force()")
             self.root.lift()
             self.root.focus_force()
             
             # Set topmost attribute based on stay_on_top setting
             if hasattr(self.gui, 'stay_on_top_var') and self.gui.stay_on_top_var.get():
                 # Stay on top is enabled - keep window on top permanently
-                log_info("[WINDOW] Stay on top enabled, setting topmost=True")
+                log_debug("[WINDOW] Stay on top enabled")
                 self.root.attributes('-topmost', True)
             else:
                 # Stay on top is disabled - use temporary topmost to bring to front, then remove
-                log_info("[WINDOW] Stay on top disabled, using temporary topmost")
+                log_debug("[WINDOW] Using temporary topmost")
                 self.root.attributes('-topmost', True)
                 self.root.update()  # Force update to apply topmost
                 self.root.attributes('-topmost', False)
-            
-            log_info("[WINDOW] === show_window() completed successfully ===")
                 
         except Exception as e:
             log_error(f"[WINDOW] ERROR in show_window: {e}", e)
@@ -279,17 +275,13 @@ class ExpenseTracker:
     def hide_window(self):
         """Hide window to system tray with slide animation"""
         try:
-            log_info(f"[WINDOW] === hide_window() called at {time.time():.3f} ===")
-            log_info(f"[WINDOW] Current hidden state: {self.is_hidden}")
-            log_info(f"[WINDOW] Quick Add dialog open flag: {getattr(self, '_quick_add_dialog_open', False)}")
+            log_info(f"[WINDOW] Hiding window")
+            log_debug(f"[WINDOW] Hidden state: {self.is_hidden}, Quick Add open: {getattr(self, '_quick_add_dialog_open', False)}")
             
-            log_info("[WINDOW] Setting hidden state to True")
             self.is_hidden = True
             
             # Close all open dialogs first to prevent focus issues
-            log_info("[WINDOW] Closing all open dialogs")
             self.close_all_dialogs()
-            log_info("[WINDOW] All dialogs closed")
             
             # Get current position
             current_geometry = self.root.geometry()
@@ -305,10 +297,8 @@ class ExpenseTracker:
                     return
             
             # Fallback: just hide
-            log_info("[WINDOW] Using fallback withdraw()")
+            log_debug("[WINDOW] Using fallback withdraw()")
             self.root.withdraw()
-            
-            log_info("[WINDOW] === hide_window() completed successfully ===")
             
         except Exception as e:
             log_error(f"[WINDOW] ERROR in hide_window: {e}", e)
@@ -406,7 +396,18 @@ class ExpenseTracker:
         dialog.dialog.bind('<Destroy>', lambda e: on_dialog_destroy())
     
     def show_quick_add_dialog(self):
-        """Show quick add expense dialog without opening main window"""
+        """
+        Show quick add expense dialog without opening main window.
+        Thread-safe: Posts request to GUI queue for main thread execution.
+        """
+        log_info("[DIALOG] Quick Add requested - posting to GUI queue")
+        self.gui_queue.put(self._show_quick_add_dialog_main_thread)
+    
+    def _show_quick_add_dialog_main_thread(self):
+        """
+        PRIVATE: Create Quick Add dialog in main thread.
+        Called via GUI queue from show_quick_add_dialog().
+        """
         try:
             log_info(f"[DIALOG] === Quick Add Dialog Creation Started at {time.time():.3f} ===")
             
@@ -559,6 +560,7 @@ class ExpenseTracker:
                     self.update_tray_tooltip()
                     
                     log_info(f"Quick add expense: ${sanitized['amount']:.2f} - {sanitized['description']}")
+                    self._quick_add_dialog_open = False
                     dialog.destroy()
                     
                 except Exception as e:
@@ -570,7 +572,8 @@ class ExpenseTracker:
                     amount_entry.focus_set()
             
             def on_cancel():
-                """Handle cancel button click"""
+                """Handle cancel button click and cleanup"""
+                self._quick_add_dialog_open = False
                 dialog.destroy()
             
             # Add button
@@ -627,79 +630,9 @@ class ExpenseTracker:
             amount_entry.focus_set()  # Set focus on amount entry
             log_info("[DIALOG] Focus set successfully")
             
-            # IMPORTANT: Bind FocusOut AFTER dialog is shown and focused
-            # This prevents the initial show/focus from triggering auto-close
-            def on_focus_out(event):
-                log_info(f"[DIALOG] FocusOut event triggered by widget: {event.widget}")
-                log_info("[DIALOG] Scheduling focus check with 50ms delay")
-                # Small delay to check if focus truly left the dialog window
-                dialog.after(50, lambda: check_focus_and_close())
-            
-            def check_focus_and_close():
-                log_info("[DIALOG] === Focus Check Started ===")
-                try:
-                    # Check if dialog still exists and focus is outside the dialog
-                    if not dialog.winfo_exists():
-                        log_info("[DIALOG] Dialog no longer exists, aborting close check")
-                        return
-                    
-                    # Don't close if we're currently showing a messagebox
-                    if hasattr(dialog, '_showing_messagebox') and dialog._showing_messagebox:
-                        log_info("[DIALOG] Messagebox is showing - keeping dialog open")
-                        return
-                    
-                    log_info("[DIALOG] Dialog exists, checking focus location")
-                    focused = dialog.focus_get()
-                    log_info(f"[DIALOG] Currently focused widget: {focused}")
-                    
-                    # Close if no widget has focus or focus is in a different window
-                    if focused is None:
-                        log_info("[DIALOG] No widget has focus - DESTROYING DIALOG")
-                        dialog.destroy()
-                        self._quick_add_dialog_open = False
-                        log_info("[DIALOG] Dialog destroyed and flag set to False")
-                    elif focused.winfo_toplevel() != dialog:
-                        # Check if focus is on a messagebox (child of our dialog)
-                        # Messageboxes have parent=dialog, so they're transient windows
-                        focused_top = focused.winfo_toplevel()
-                        try:
-                            # Check if the focused toplevel is transient for our dialog
-                            # This indicates it's a child window (like a messagebox)
-                            transient_master = focused_top.winfo_toplevel().master
-                            if transient_master == dialog:
-                                log_info(f"[DIALOG] Focus is on child window (messagebox) - keeping dialog open")
-                                return
-                        except:
-                            pass  # If checking master fails, continue with normal logic
-                        
-                        log_info(f"[DIALOG] Focus is in different window ({focused_top}) - DESTROYING DIALOG")
-                        dialog.destroy()
-                        self._quick_add_dialog_open = False
-                        log_info("[DIALOG] Dialog destroyed and flag set to False")
-                    else:
-                        log_info("[DIALOG] Focus still inside dialog - keeping open")
-                except Exception as e:
-                    log_error(f"[DIALOG] ERROR during check_focus_and_close: {e}", e)
-                    try:
-                        self._quick_add_dialog_open = False
-                    except:
-                        pass  # Dialog might already be destroyed
-                
-                log_info("[DIALOG] === Focus Check Complete ===")
-            
-            # Bind FocusOut to all widgets in the dialog recursively
-            def bind_focus_out_recursive(widget):
-                try:
-                    log_info(f"[DIALOG] Binding FocusOut to widget: {widget}")
-                    widget.bind('<FocusOut>', on_focus_out, add='+')
-                    for child in widget.winfo_children():
-                        bind_focus_out_recursive(child)
-                except Exception as e:
-                    log_error(f"[DIALOG] ERROR binding FocusOut to {widget}: {e}", e)
-            
-            # Use after() to bind focus events after the dialog is fully initialized
+            # Schedule FocusOut binding after dialog is fully set up
             log_info("[DIALOG] Scheduling FocusOut binding with 100ms delay")
-            dialog.after(100, lambda: self._bind_dialog_focus_out(dialog, bind_focus_out_recursive))
+            self.root.after(100, lambda: self._bind_dialog_focus_out(dialog))
             
             # Track dialog
             self.open_dialogs.append(dialog)
@@ -718,16 +651,99 @@ class ExpenseTracker:
             # Reset flag on error
             self._quick_add_dialog_open = False
     
-    def _bind_dialog_focus_out(self, dialog, bind_func):
-        """Helper method to bind FocusOut events with logging"""
-        log_info("[DIALOG] === Starting FocusOut Binding ===")
+    def _bind_dialog_focus_out(self, dialog):
+        """
+        Bind FocusOut events to all widgets in the dialog to automatically close it
+        when focus moves outside the dialog (e.g., clicking on main window or elsewhere)
+        """
         try:
-            bind_func(dialog)
-            log_info("[DIALOG] FocusOut binding complete for all widgets")
-        except Exception as e:
-            log_error(f"[DIALOG] ERROR during FocusOut binding: {e}", e)
-        log_info("[DIALOG] === FocusOut Binding Complete ===")
+            log_info("[DIALOG] === Starting FocusOut Binding ===")
             
+            def bind_to_widget_tree(widget):
+                """Recursively bind FocusOut to a widget and all its children"""
+                try:
+                    log_info(f"[DIALOG] Binding FocusOut to widget: {widget}")
+                    widget.bind('<FocusOut>', lambda e: self._on_dialog_focus_out(dialog))
+                    for child in widget.winfo_children():
+                        bind_to_widget_tree(child)
+                except Exception as e:
+                    log_error(f"[DIALOG] Error binding to widget {widget}: {e}")
+            
+            # Bind to dialog and all its children
+            bind_to_widget_tree(dialog)
+            log_info("[DIALOG] FocusOut binding complete for all widgets")
+            log_info("[DIALOG] === FocusOut Binding Complete ===")
+            
+        except Exception as e:
+            log_error(f"[DIALOG] Error in _bind_dialog_focus_out: {e}")
+    
+    def _on_dialog_focus_out(self, dialog):
+        """
+        Handle FocusOut event for Quick Add dialog.
+        Schedules a focus check after a short delay to see if focus has truly left the dialog.
+        """
+        try:
+            log_info(f"[DIALOG] FocusOut event triggered by widget: {dialog.focus_get()}")
+            log_info("[DIALOG] Scheduling focus check with 50ms delay")
+            
+            # Schedule focus check after brief delay to allow focus to settle
+            self.root.after(50, lambda: self._check_dialog_focus(dialog))
+            
+        except Exception as e:
+            log_error(f"[DIALOG] Error in _on_dialog_focus_out: {e}")
+    
+    def _check_dialog_focus(self, dialog):
+        """
+        Check if focus has truly left the dialog. If so, close it.
+        This is called after a brief delay following a FocusOut event.
+        """
+        try:
+            log_info("[DIALOG] === Focus Check Started ===")
+            
+            # Check if dialog still exists
+            if not dialog.winfo_exists():
+                log_info("[DIALOG] Dialog no longer exists")
+                log_info("[DIALOG] === Focus Check Complete ===")
+                return
+            
+            log_info("[DIALOG] Dialog exists, checking focus location")
+            
+            # Get the currently focused widget
+            focused_widget = dialog.focus_get()
+            log_info(f"[DIALOG] Currently focused widget: {focused_widget}")
+            
+            # If no widget has focus or focus is outside dialog, close it
+            if focused_widget is None:
+                log_info("[DIALOG] No widget has focus - DESTROYING DIALOG")
+                self._quick_add_dialog_open = False
+                dialog.destroy()
+            else:
+                # Check if focused widget is part of the dialog
+                widget_root = focused_widget
+                is_inside_dialog = False
+                
+                # Walk up the widget tree to see if we're inside the dialog
+                while widget_root is not None:
+                    if widget_root == dialog:
+                        is_inside_dialog = True
+                        break
+                    try:
+                        widget_root = widget_root.master
+                    except:
+                        break
+                
+                if is_inside_dialog:
+                    log_info("[DIALOG] Focus still inside dialog - keeping open")
+                else:
+                    log_info("[DIALOG] Focus outside dialog - DESTROYING DIALOG")
+                    self._quick_add_dialog_open = False
+                    dialog.destroy()
+            
+            log_info("[DIALOG] === Focus Check Complete ===")
+            
+        except Exception as e:
+            log_error(f"[DIALOG] Error in _check_dialog_focus: {e}")
+    
     def close_all_dialogs(self):
         """Close all open dialogs to prevent focus issues when hiding window"""
         try:
@@ -807,11 +823,45 @@ class ExpenseTracker:
     def get_largest_expense(self):
         """Get the largest expense amount and description"""
         return ExpenseAnalytics.calculate_largest_expense(self.expenses)
+    
+    def _process_gui_queue(self):
+        """
+        Process GUI operations from the queue (called periodically from main thread)
+        
+        This enables thread-safe GUI operations from background threads like the tray icon.
+        All GUI operations posted to self.gui_queue will be executed in the main thread.
+        """
+        try:
+            # Process all pending items (non-blocking)
+            while True:
+                try:
+                    # Get item from queue (don't block)
+                    callback = self.gui_queue.get_nowait()
+                    
+                    # Execute the callback in the main thread
+                    callback()
+                    
+                    # Mark task as done
+                    self.gui_queue.task_done()
+                    
+                except queue.Empty:
+                    # No more items in queue
+                    break
+                    
+        except Exception as e:
+            log_error(f"Error processing GUI queue: {e}")
+        
+        # Schedule next queue check (50ms interval for responsive UI)
+        if hasattr(self, 'root') and self.root.winfo_exists():
+            self.root.after(50, self._process_gui_queue)
         
     def run(self):
         """Run the application"""
         # Start main GUI
         # Note: Protocol handler is already set up in __init__ to quit_app
+        
+        # Start GUI queue processor for thread-safe operations
+        self._process_gui_queue()
         
         try:
             self.root.mainloop()

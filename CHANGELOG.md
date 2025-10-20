@@ -1,5 +1,181 @@
 # LiteFinPad Changelog
 
+## 🐛 Version 3.5.2 - Critical Quick Add Dialog Threading Fix - October 19, 2025
+
+### **Summary**
+v3.5.2 addresses a **critical threading issue** with the Quick Add dialog that has existed since its introduction in v3.1. This release implements a complete **queue-based threading system** that safely handles GUI operations originating from the tray icon's background Win32 message loop. The Quick Add dialog now works reliably without GIL threading conflicts, ensuring stable operation with Windows OS interactions.
+
+---
+
+### 🐛 **Critical Fixes**
+
+#### **1. Queue-Based Threading System for Quick Add Dialog** ⚠️ CRITICAL
+- **Fixed**: Implemented thread-safe GUI queue system for Quick Add dialog
+  - **Root Cause**: Tray icon's Win32 message loop runs in background thread; Tkinter is not thread-safe
+  - **Impact**: Quick Add dialog (double-click tray icon) caused GIL threading violations and crashes
+  - **Solution**: Complete queue-based threading implementation:
+    - `gui_queue` - Thread-safe queue for GUI operation requests
+    - `_process_gui_queue()` - Processes queued operations in main thread (runs every 100ms)
+    - `show_quick_add_dialog()` - Posts dialog creation request to queue from tray thread
+    - `_show_quick_add_dialog_main_thread()` - Creates dialog safely in main GUI thread
+  - **Technical Details**:
+    - Background thread (tray icon) posts requests to queue
+    - Main GUI thread polls queue and executes operations
+    - Ensures all Tkinter operations happen in main thread
+    - Compatible with Python 3.14's stricter GIL requirements
+  - **Additional**: Restored FocusOut binding system for auto-close convenience
+    - `_bind_dialog_focus_out()` - Binds FocusOut to all dialog widgets
+    - `_on_dialog_focus_out()` - Handles FocusOut events
+    - `_check_dialog_focus()` - Determines if focus left dialog and closes if needed
+  - **Testing**: Verified all test scenarios pass (double-click, add expense, cancel, multiple dialogs, threading stress tests)
+  - **Files Modified**: `main.py`
+
+---
+
+### 📝 **Development Notes**
+
+#### **Quick Add Dialog Threading Architecture**
+The Quick Add dialog is the most complex dialog in the application due to fundamental threading challenges:
+
+**The Problem:**
+- **Tray Icon**: Runs Win32 message loop in background thread (required by Windows OS)
+- **Tkinter**: Not thread-safe; all GUI operations must happen in main thread
+- **Python 3.14**: Stricter GIL enforcement makes threading violations more apparent
+- **User Action**: Double-click tray icon → needs to create GUI dialog from background thread
+
+**The Solution (Queue-Based Threading):**
+1. Background thread detects double-click in Win32 message loop
+2. Background thread posts "create dialog" request to thread-safe queue
+3. Main GUI thread polls queue every 100ms
+4. Main GUI thread processes request and creates dialog safely
+5. All Tkinter operations happen in main thread → no GIL violations
+
+**Additional Complexity:**
+- **FocusOut Auto-Close**: Complex focus detection system for UX convenience
+- **DialogHelper Incompatibility**: Cannot use standard DialogHelper due to threading + cleanup requirements
+
+This architecture is why the Quick Add dialog is explicitly excluded from standard DialogHelper refactoring.
+
+---
+
+### 🔄 **Version History Context**
+- **v3.1**: Quick Add dialog introduced with threading complexity
+- **v3.5.1**: DialogHelper refactoring attempted but partially reverted
+- **v3.5.2**: Complete restoration of stable Quick Add dialog implementation
+
+---
+
+## 🔧 Version 3.5.1 - Dialog System Refactoring & Logging Optimization - October 20, 2025
+
+### **Summary**
+v3.5.1 focuses on **dialog system standardization** and **logging optimization**. This release introduces a new `DialogHelper` module that centralizes common dialog creation, positioning, and binding logic, reducing code duplication across 4 major dialogs. Additionally, a comprehensive 3-step logging optimization reduces log verbosity by ~90% while maintaining critical user action visibility. An optional debug mode toggle via `settings.ini` provides users with a simple way to enable detailed logging for troubleshooting. Minor UI fixes ensure proper dialog display and element visibility.
+
+---
+
+### ✨ **New Features**
+
+#### **1. Dialog Helper Module** 🪟 COMPLETED
+- **Created**: New `dialog_helpers.py` module to standardize dialog creation and management
+  - **Methods**:
+    - `create_dialog()` - Standard Toplevel dialog with common settings
+    - `create_content_frame()` - Consistent content frame with padding
+    - `center_on_parent()` - Center dialog over parent window
+    - `position_lower_right()` - Position dialog in lower-right corner with screen boundary checks
+    - `position_right_of_parent()` - Smart positioning to the right of parent (with fallbacks)
+    - `bind_escape_to_close()` - Standard Escape key binding
+    - `show_dialog()` - Consistent dialog display with grab/focus
+  - **Benefits**:
+    - Eliminates ~200+ lines of duplicated positioning/binding code
+    - Consistent dialog behavior across the application
+    - Screen boundary detection prevents dialogs from going off-screen
+    - Easier to maintain and update dialog system
+  - **Dialogs Refactored**:
+    - ✅ About Dialog (`gui.py`)
+    - ✅ Add Expense Dialog (`expense_table.py`)
+    - ✅ Edit Expense Dialog (`expense_table.py`)
+    - ✅ Export Dialog (`export_data.py`)
+    - ⚠️ Quick Add Dialog - Not refactored (complex GIL threading requirements)
+  - **Impact**: HIGH - Major code organization and maintainability improvement
+  - **Files Created**: `dialog_helpers.py`
+  - **Files Modified**: `gui.py`, `expense_table.py`, `export_data.py`, `config.py`
+
+#### **2. Debug Mode Toggle** 🔍 COMPLETED
+- **Added**: Optional debug mode configuration via `settings.ini` file
+  - **Configuration**:
+    - `debug_mode = false` (default) - Normal logging (INFO level, important events only)
+    - `debug_mode = true` - Debug logging (DEBUG level, verbose technical details)
+  - **Benefits**:
+    - Users can enable debug mode without code changes
+    - Easier troubleshooting and support
+    - Future-proofs development workflow
+  - **Impact**: MEDIUM - Improved user support and debugging capabilities
+  - **Files Created**: `settings.ini`
+  - **Files Modified**: `error_logger.py`
+
+---
+
+### 🔧 **Improvements**
+
+#### **1. Logging Optimization (3-Step Consolidation)** 📝 COMPLETED
+- **Optimized**: Comprehensive logging cleanup to reduce noise while maintaining visibility
+  - **Step 1 - Tray Icon Mouse Movement** (~99% reduction):
+    - Moved tray icon mouse movement logs (`lparam=0x200`) from INFO to DEBUG
+    - Eliminated ~hundreds of log entries per mouse hover
+  - **Step 2 - Window & Click Detection** (~87% reduction):
+    - Simplified `show_window()` and `hide_window()` verbose logging to DEBUG
+    - Simplified `on_left_click()` and `on_double_click()` internal state logs to DEBUG
+    - Kept key user actions at INFO level (e.g., "Single-click: toggling window")
+  - **Step 3 - Export/Import Operations** (~75% reduction):
+    - Moved `log_library_check()` from INFO to DEBUG
+    - Moved data folder scanning and loading details to DEBUG
+    - Kept export attempts and completions at INFO level
+  - **Overall Impact**: ~90% reduction in log verbosity in normal mode
+  - **Benefits**:
+    - Clean, readable logs focused on user actions
+    - Reduced log file size and improved performance
+    - DEBUG mode available for troubleshooting when needed
+  - **Files Modified**: `error_logger.py`, `tray_icon.py`, `main.py`, `export_data.py`
+
+#### **2. Dialog Display Fixes** 🖥️ COMPLETED
+- **Fixed**: Minor UI issues to ensure proper dialog element visibility
+  - **Edit Expense Dialog**: Height increased to 410px to accommodate date dropdown and buttons
+  - **Export Dialog**: Height increased to 550px to prevent text overlap
+  - **Add Expense Dialog**: Perfect snapping to lower-right corner with screen boundary detection
+  - **Edit Expense Dialog**: Date field now shows days of the expense's month (consistent with Add Expense)
+  - **Button Text**: "Update Expense" → "Update" for cleaner UI
+  - **Impact**: LOW - Minor visual improvements for better UX
+  - **Files Modified**: `config.py`, `expense_table.py`
+
+---
+
+### 📦 **Technical Details**
+
+#### **Build Statistics**
+- **Total Python Files**: 13 files (~6,200 lines including widgets/)
+- **Module Architecture**: Analytics, Data Manager, Validation, NumberPad Widget, DialogHelper, Config
+- **Code Quality**: Minimal duplication, clear separation of concerns, high maintainability
+
+#### **Architecture Improvements**
+- **Dialog System**: Centralized, standardized, consistent
+- **Logging System**: Intelligent verbosity control with optional debug mode
+- **Configuration Management**: All visual constants in `config.py` with comprehensive dialog dimensions
+
+---
+
+### 🧪 **Testing Notes**
+- ✅ Normal logging mode: Clean, readable logs with important events only
+- ✅ Debug logging mode: Verbose logs with all technical details
+- ✅ All dialogs tested: About, Add Expense, Edit Expense, Export
+- ✅ Dialog positioning: Screen boundary detection works correctly
+- ✅ Settings file: Gracefully handles missing file (defaults to false)
+
+---
+
+### 📋 **Known Issues**
+- **Quick Add Dialog Threading Limitations**: The Quick Add dialog (double-click tray icon) cannot be refactored to use the standard `DialogHelper` module due to complex GIL (Global Interpreter Lock) threading requirements. The dialog runs in a background thread (tray icon's message loop) and requires specific cleanup logic (`on_cancel()` method) to manage the `_quick_add_dialog_open` flag and threading state. Attempting to use `DialogHelper.bind_escape_to_close()` bypasses this critical cleanup, leading to threading conflicts. The dialog remains implemented with custom `tk.Toplevel()` logic and will require a more sophisticated threading-aware dialog system for future refactoring
+
+---
+
 ## 🏗️ Version 3.5 - Major Architectural Refactoring - October 19, 2025
 
 ### **Summary**

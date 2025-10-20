@@ -19,6 +19,12 @@ class Window:
     HEIGHT = 1000  # Increased from 850 for inline Quick Add section
     COMPACT_HEIGHT = 850  # Legacy compact height
     
+    # Screen margins for dialog positioning
+    MARGIN_RIGHT = 20
+    MARGIN_BOTTOM = 20
+    MARGIN_LEFT = 20
+    MARGIN_TOP = 20
+    
 class Dialog:
     """Dialog window dimensions"""
     # Add Expense Dialog (with number pad)
@@ -28,11 +34,16 @@ class Dialog:
     
     # Edit Expense Dialog
     EDIT_EXPENSE_WIDTH = 350
-    EDIT_EXPENSE_HEIGHT = 250
+    EDIT_EXPENSE_HEIGHT = 410
     
     # About Dialog
     ABOUT_WIDTH = 450
     ABOUT_HEIGHT = 480
+    
+    # Export Dialog
+    EXPORT_WIDTH = 520
+    EXPORT_HEIGHT = 550
+    EXPORT_GAP = 10  # Gap between export dialog and main window
 
 # ============================================================================
 # COLORS

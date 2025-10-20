@@ -20,6 +20,8 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from tkinter import messagebox, filedialog
 from error_logger import log_export_attempt, log_export_success, log_export_error, log_library_check, log_info, log_error, log_warning
+import config
+from dialog_helpers import DialogHelper
 
 
 class DataExporterV2:
@@ -399,14 +401,14 @@ class DataExporterV2:
             from tkinter import filedialog
             
             # Scan for all data_* folders
-            log_info("Scanning for data folders...")
+            log_debug("Scanning for data folders...")
             data_folders = []
             for item in os.listdir('.'):
                 if os.path.isdir(item) and item.startswith('data_'):
                     data_folders.append(item)
             
             data_folders.sort()  # Sort chronologically
-            log_info(f"Found {len(data_folders)} data folders: {data_folders}")
+            log_debug(f"Found {len(data_folders)} data folders: {data_folders}")
             
             # Build comprehensive backup structure
             backup_data = {
@@ -446,7 +448,7 @@ class DataExporterV2:
                         backup_data["total_expenses"] += len(expenses_list)
                         backup_data["grand_total"] += actual_total
                         
-                        log_info(f"Loaded {len(expenses_list)} expenses from {folder}")
+                        log_debug(f"Loaded {len(expenses_list)} expenses from {folder}")
                         
                     except Exception as e:
                         log_error(f"Error loading {expenses_file}", e)
@@ -536,18 +538,19 @@ class DataExporterV2:
         import tkinter as tk
         from tkinter import ttk
         
-        # Create dialog window
-        dialog = tk.Toplevel()
-        dialog.title("Export Expenses")
-        dialog.resizable(False, False)
-        dialog.transient()
+        # Get main window reference
+        main_window = tk._default_root
         
-        # IMPORTANT: Withdraw immediately to prevent flash at top-left corner
-        dialog.withdraw()
+        # Create dialog using DialogHelper
+        dialog = DialogHelper.create_dialog(
+            main_window,
+            "Export Expenses",
+            config.Dialog.EXPORT_WIDTH,
+            config.Dialog.EXPORT_HEIGHT
+        )
         
-        # Main frame
-        main_frame = ttk.Frame(dialog, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Create main content frame
+        main_frame = DialogHelper.create_content_frame(dialog, padding="20")
         
         # Title
         title_label = ttk.Label(
@@ -573,6 +576,10 @@ class DataExporterV2:
         # Configure button styles
         style = ttk.Style()
         style.configure('Large.TButton', font=('Segoe UI', 14, 'bold'), padding=(20, 10))
+        
+        # NOTE: Each export button chains the export method with dialog.destroy().
+        # This means the dialog closes even if the user cancels the file picker,
+        # which is acceptable behavior for a quick workflow.
         
         # Excel button
         excel_btn = ttk.Button(
@@ -638,42 +645,20 @@ class DataExporterV2:
         )
         cancel_btn.pack(pady=20)
         
+        # Position dialog to the right of main window with intelligent fallbacks
+        DialogHelper.position_right_of_parent(
+            dialog,
+            main_window,
+            config.Dialog.EXPORT_WIDTH,
+            config.Dialog.EXPORT_HEIGHT,
+            config.Dialog.EXPORT_GAP
+        )
+        
         # Bind Escape key to close dialog
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        DialogHelper.bind_escape_to_close(dialog)
         
-        # Position dialog next to main window (snap to right side)
-        dialog.update_idletasks()
-        
-        # Get main window position and size
-        main_window = dialog.master  # The main application window
-        main_x = main_window.winfo_x()
-        main_y = main_window.winfo_y()
-        main_width = main_window.winfo_width()
-        main_height = main_window.winfo_height()
-        
-        # Position dialog to the right of main window with small gap
-        dialog_width = 520
-        dialog_height = 540
-        gap = 10  # Small gap between windows
-        
-        x = main_x + main_width + gap
-        y = main_y  # Align with top of main window
-        
-        # Ensure dialog doesn't go off-screen
-        screen_width = dialog.winfo_screenwidth()
-        if x + dialog_width > screen_width:
-            # If it would go off-screen, position to the left of main window
-            x = main_x - dialog_width - gap
-            if x < 0:
-                # If still off-screen, center it
-                x = (screen_width - dialog_width) // 2
-                y = (dialog.winfo_screenheight() - dialog_height) // 2
-        
-        dialog.geometry(f"{dialog_width}x{dialog_height}+{x}+{y}")
-        
-        # Show the dialog now that it's fully configured and positioned
-        dialog.deiconify()
-        dialog.grab_set()
+        # Show the dialog
+        DialogHelper.show_dialog(dialog)
 
 
 def export_expenses(expenses: List[Dict], current_month: str):

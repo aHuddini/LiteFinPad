@@ -3,6 +3,7 @@ from tkinter import ttk
 from datetime import datetime
 import webbrowser
 import config
+from dialog_helpers import DialogHelper
 
 
 def validate_amount_input(new_value):
@@ -56,7 +57,7 @@ class LiteFinPadGUI:
             with open('version.txt', 'r') as f:
                 version = f.read().strip()
         except:
-            version = "3.5"  # Fallback version
+            version = "3.4"  # Fallback version
         
         self.root.title(f"LiteFinPad v{version} - Monthly Expense Tracker")
         self.root.geometry(f"{config.Window.WIDTH}x{config.Window.HEIGHT}")  # Increased height for inline Quick Add section
@@ -447,18 +448,16 @@ class LiteFinPadGUI:
         except:
             version = "3.1"  # Fallback version
         
-        # Create custom dialog
-        dialog = tk.Toplevel(self.root)
-        dialog.title("About LiteFinPad")
-        dialog.resizable(False, False)
-        dialog.transient(self.root)
-        
-        # IMPORTANT: Withdraw immediately to prevent flash at top-left corner
-        dialog.withdraw()
+        # Create dialog using DialogHelper
+        dialog = DialogHelper.create_dialog(
+            self.root,
+            "About LiteFinPad",
+            config.Dialog.ABOUT_WIDTH,
+            config.Dialog.ABOUT_HEIGHT
+        )
         
         # Main content frame
-        content_frame = ttk.Frame(dialog, padding="20")
-        content_frame.pack(fill=tk.BOTH, expand=True)
+        content_frame = DialogHelper.create_content_frame(dialog, padding="20")
         
         # App name and version
         app_name_label = ttk.Label(
@@ -551,21 +550,18 @@ class LiteFinPadGUI:
         close_label.bind('<Button-1>', lambda e: dialog.destroy())
         
         # Bind Escape key to close
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        DialogHelper.bind_escape_to_close(dialog)
         
-        # Center the dialog now that it's fully configured
-        dialog.update_idletasks()
-        dialog.geometry(f"{config.Dialog.ABOUT_WIDTH}x{config.Dialog.ABOUT_HEIGHT}")  # Set size
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (config.Dialog.ABOUT_WIDTH // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (config.Dialog.ABOUT_HEIGHT // 2)
-        dialog.geometry(f"+{x}+{y}")
+        # Center the dialog
+        DialogHelper.center_on_parent(
+            dialog,
+            self.root,
+            config.Dialog.ABOUT_WIDTH,
+            config.Dialog.ABOUT_HEIGHT
+        )
         
-        # Show the dialog now that it's fully configured and positioned
-        dialog.deiconify()
-        dialog.grab_set()
-        
-        # Focus the dialog
-        dialog.focus_set()
+        # Show the dialog
+        DialogHelper.show_dialog(dialog)
         
     def update_display(self):
         """Update all display elements"""
