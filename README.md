@@ -34,14 +34,14 @@
 <table>
 <tr>
 <td align="center">
-<img src="ReadmeDemo1.png" alt="Dashboard View" width="400">
+<img src="ReadmeDemo1.png" alt="Dashboard View" width="320">
 <br>
-<em>Main dashboard with spending analytics and budget tracking</em>
+<em>Main dashboard spending tracker</em>
 </td>
 <td align="center">
-<img src="ReadmeDemo2.png" alt="Expense List View" width="400">
+<img src="ReadmeDemo2.png" alt="Expense List View" width="320">
 <br>
-<em>Expense list with quick add functionality</em>
+<em>Detailed Expense list with quick add functionality</em>
 </td>
 </tr>
 </table>
