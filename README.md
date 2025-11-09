@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="LF_ReadMeTemporary.png" alt="LiteFinPad Logo" width="200">
+
 **A lightweight, offline-first Windows expense tracker with modern UI and powerful features**
 
 ![Version](https://img.shields.io/badge/version-3.6-blue.svg)
