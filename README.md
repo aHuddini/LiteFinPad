@@ -31,11 +31,20 @@
 
 <div align="center">
 
-![Dashboard View](ReadmeDemo1.png)
-*Main dashboard with spending analytics and budget tracking*
-
-![Expense List View](ReadmeDemo2.png)
-*Expense list with quick add functionality*
+<table>
+<tr>
+<td align="center">
+<img src="ReadmeDemo1.png" alt="Dashboard View" width="400">
+<br>
+<em>Main dashboard with spending analytics and budget tracking</em>
+</td>
+<td align="center">
+<img src="ReadmeDemo2.png" alt="Expense List View" width="400">
+<br>
+<em>Expense list with quick add functionality</em>
+</td>
+</tr>
+</table>
 
 </div>
 
