@@ -58,6 +58,11 @@ class MonthViewer:
         except Exception as e:
             print(f"Error scanning for available months: {e}")
         
+        # CRITICAL: Always include current month, even if no data folder exists yet
+        # This ensures users can always navigate back to current month from archive mode
+        if self.actual_month not in available_months:
+            available_months.append(self.actual_month)
+        
         # Sort descending (newest first)
         available_months.sort(reverse=True)
         return available_months

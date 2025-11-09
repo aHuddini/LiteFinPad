@@ -27,6 +27,20 @@
 
 ---
 
+## Screenshots
+
+<div align="center">
+
+![Dashboard View](ReadmeDemo1.png)
+*Main dashboard with spending analytics and budget tracking*
+
+![Expense List View](ReadmeDemo2.png)
+*Expense list with quick add functionality*
+
+</div>
+
+---
+
 ## What's New in v3.6
 
 ### Budget Threshold Tracking (November 2025)
