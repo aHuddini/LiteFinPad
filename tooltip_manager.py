@@ -26,7 +26,29 @@ class TooltipManager:
             widget: The tkinter widget to attach the tooltip to
             text: The tooltip text to display
         """
+        # Unbind existing tooltip handlers to prevent duplicates
+        try:
+            widget.unbind("<Enter>")
+            widget.unbind("<Leave>")
+        except:
+            pass
+        
+        # Destroy any existing tooltip window
+        if hasattr(widget, 'tooltip'):
+            try:
+                widget.tooltip.destroy()
+            except:
+                pass
+            delattr(widget, 'tooltip')
+        
         def on_enter(event):
+            # Don't create tooltip if one already exists
+            if hasattr(widget, 'tooltip') and widget.tooltip:
+                try:
+                    widget.tooltip.destroy()
+                except:
+                    pass
+            
             tooltip = tk.Toplevel()
             tooltip.wm_overrideredirect(True)
             tooltip.wm_attributes('-topmost', True)  # Ensure tooltip appears on top
@@ -54,9 +76,12 @@ class TooltipManager:
             widget.tooltip = tooltip
             
         def on_leave(event):
-            if hasattr(widget, 'tooltip'):
-                widget.tooltip.destroy()
-                del widget.tooltip
+            if hasattr(widget, 'tooltip') and widget.tooltip:
+                try:
+                    widget.tooltip.destroy()
+                    delattr(widget, 'tooltip')
+                except:
+                    pass
                 
         widget.bind("<Enter>", on_enter)
         widget.bind("<Leave>", on_leave)
@@ -71,8 +96,19 @@ class TooltipManager:
         """
         # Destroy existing tooltip if visible
         if hasattr(widget, 'tooltip'):
-            widget.tooltip.destroy()
-            del widget.tooltip
+            try:
+                widget.tooltip.destroy()
+            except:
+                pass
+            if hasattr(widget, 'tooltip'):
+                delattr(widget, 'tooltip')
+        
+        # Unbind old handlers and recreate tooltip with new text
+        try:
+            widget.unbind("<Enter>")
+            widget.unbind("<Leave>")
+        except:
+            pass
         
         # Recreate tooltip with new text
         self.create(widget, new_text)
@@ -84,7 +120,19 @@ class TooltipManager:
         Args:
             widget: The widget whose tooltip to destroy
         """
+        # Unbind event handlers
+        try:
+            widget.unbind("<Enter>")
+            widget.unbind("<Leave>")
+        except:
+            pass
+        
+        # Destroy tooltip window
         if hasattr(widget, 'tooltip'):
-            widget.tooltip.destroy()
-            del widget.tooltip
+            try:
+                widget.tooltip.destroy()
+            except:
+                pass
+            if hasattr(widget, 'tooltip'):
+                delattr(widget, 'tooltip')
 

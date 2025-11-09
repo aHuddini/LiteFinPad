@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import calendar
 import json
 import os
+from date_utils import DateUtils
 
 
 class ExpenseAnalytics:
@@ -21,6 +22,153 @@ class ExpenseAnalytics:
     All methods are static - they don't modify state, just perform calculations
     on the data passed to them. This makes testing easier and keeps the logic clean.
     """
+    
+    # ==========================================
+    # HELPER METHODS: Expense Filtering
+    # ==========================================
+    # These methods centralize common expense filtering patterns to eliminate duplication.
+    
+    @staticmethod
+    def _filter_expenses_by_date_range(expenses, start_date=None, end_date=None, current_date=None):
+        """
+        Filter expenses by date range.
+        
+        Args:
+            expenses (list): List of expense dictionaries
+            start_date (datetime, optional): Start of date range (inclusive). If None, no start limit.
+            end_date (datetime, optional): End of date range (inclusive). If None and current_date provided, excludes future expenses.
+            current_date (datetime, optional): Reference date for "future" filtering. Defaults to today.
+        
+        Returns:
+            list: Filtered expense list
+        
+        Example:
+            # Get all past expenses
+            past = ExpenseAnalytics._filter_expenses_by_date_range(expenses, end_date=datetime.now())
+            
+            # Get expenses in a specific month
+            month_start = datetime(2025, 10, 1)
+            month_end = datetime(2025, 10, 31)
+            month_expenses = ExpenseAnalytics._filter_expenses_by_date_range(expenses, month_start, month_end)
+        """
+        if current_date is None:
+            current_date = datetime.now()
+        
+        filtered = []
+        for expense in expenses:
+            dt = DateUtils.parse_date(expense['date'])
+            if not dt:
+                continue  # Skip invalid dates
+            
+            expense_date = dt.date()
+            
+            # Check start date
+            if start_date and expense_date < start_date.date():
+                continue
+            
+            # Check end date
+            if end_date:
+                if expense_date > end_date.date():
+                    continue
+            elif expense_date > current_date.date():
+                # Default: exclude future expenses if no end_date specified
+                continue
+            
+            filtered.append(expense)
+        
+        return filtered
+    
+    @staticmethod
+    def _filter_expenses_by_month(expenses, month_date, exclude_future=True):
+        """
+        Filter expenses for a specific month.
+        
+        Args:
+            expenses (list): List of expense dictionaries
+            month_date (datetime): Any date in the target month
+            exclude_future (bool): If True, exclude expenses after month_date. Default True.
+        
+        Returns:
+            list: Expenses for the specified month
+        
+        Example:
+            # Get October 2025 expenses (excluding future)
+            oct_expenses = ExpenseAnalytics._filter_expenses_by_month(expenses, datetime(2025, 10, 15))
+        """
+        month_start = month_date.replace(day=1)
+        
+        # Calculate month end
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
+        
+        end_date = month_date if exclude_future else month_end
+        
+        return ExpenseAnalytics._filter_expenses_by_date_range(
+            expenses, 
+            start_date=month_start, 
+            end_date=end_date,
+            current_date=month_date
+        )
+    
+    @staticmethod
+    def _filter_expenses_by_week(expenses, week_date, exclude_future=True):
+        """
+        Filter expenses for a specific week (Monday to Sunday).
+        
+        Args:
+            expenses (list): List of expense dictionaries
+            week_date (datetime): Any date in the target week
+            exclude_future (bool): If True, exclude expenses after week_date. Default True.
+        
+        Returns:
+            list: Expenses for the specified week
+        
+        Example:
+            # Get current week's expenses (excluding future)
+            week_expenses = ExpenseAnalytics._filter_expenses_by_week(expenses, datetime.now())
+        """
+        week_start = week_date - timedelta(days=week_date.weekday())  # Monday
+        week_end = week_start + timedelta(days=6)  # Sunday
+        
+        end_date = week_date if exclude_future else week_end
+        
+        return ExpenseAnalytics._filter_expenses_by_date_range(
+            expenses,
+            start_date=week_start,
+            end_date=end_date,
+            current_date=week_date
+        )
+    
+    @staticmethod
+    def _filter_past_expenses(expenses, current_date=None):
+        """
+        Filter out future expenses (keep only past and today).
+        
+        Args:
+            expenses (list): List of expense dictionaries
+            current_date (datetime, optional): Reference date. Defaults to today.
+        
+        Returns:
+            list: Expenses with dates <= current_date
+        
+        Example:
+            # Get all past expenses
+            past = ExpenseAnalytics._filter_past_expenses(expenses)
+        """
+        if current_date is None:
+            current_date = datetime.now()
+        
+        return ExpenseAnalytics._filter_expenses_by_date_range(
+            expenses,
+            end_date=current_date,
+            current_date=current_date
+        )
+    
+    # ==========================================
+    # PUBLIC METHODS: Analytics Calculations
+    # ==========================================
     
     @staticmethod
     def calculate_day_progress(current_date=None):
@@ -101,13 +249,12 @@ class ExpenseAnalytics:
         if current_date is None:
             current_date = datetime.now()
         
-        # Get current month's expenses (excluding future dates)
-        month_start = current_date.replace(day=1)
-        month_expenses = [
-            e for e in expenses 
-            if datetime.strptime(e['date'], '%Y-%m-%d') >= month_start
-            and datetime.strptime(e['date'], '%Y-%m-%d').date() <= current_date.date()
-        ]
+        # Get current month's expenses (excluding future dates) using helper method
+        month_expenses = ExpenseAnalytics._filter_expenses_by_month(
+            expenses, 
+            month_date=current_date, 
+            exclude_future=True
+        )
         
         monthly_total = sum(e['amount'] for e in month_expenses)
         days_elapsed = current_date.day
@@ -136,13 +283,12 @@ class ExpenseAnalytics:
         if current_date is None:
             current_date = datetime.now()
         
-        # Get current month's expenses (excluding future dates)
-        month_start = current_date.replace(day=1)
-        month_expenses = [
-            e for e in expenses 
-            if datetime.strptime(e['date'], '%Y-%m-%d') >= month_start
-            and datetime.strptime(e['date'], '%Y-%m-%d').date() <= current_date.date()
-        ]
+        # Get current month's expenses (excluding future dates) using helper method
+        month_expenses = ExpenseAnalytics._filter_expenses_by_month(
+            expenses,
+            month_date=current_date,
+            exclude_future=True
+        )
         
         monthly_total = sum(e['amount'] for e in month_expenses)
         
@@ -175,15 +321,15 @@ class ExpenseAnalytics:
         if current_date is None:
             current_date = datetime.now()
         
-        # Get current week's expenses (Monday to today, excluding future dates)
-        week_start = current_date - timedelta(days=current_date.weekday())  # Monday of current week
-        week_expenses = [
-            e for e in expenses 
-            if datetime.strptime(e['date'], '%Y-%m-%d').date() >= week_start.date()
-            and datetime.strptime(e['date'], '%Y-%m-%d').date() <= current_date.date()
-        ]
+        # Get current week's expenses (Monday to today, excluding future dates) using helper method
+        week_expenses = ExpenseAnalytics._filter_expenses_by_week(
+            expenses,
+            week_date=current_date,
+            exclude_future=True
+        )
         
         weekly_total = sum(e['amount'] for e in week_expenses)
+        week_start = current_date - timedelta(days=current_date.weekday())  # Monday of current week
         days_elapsed = (current_date - week_start).days + 1  # Days from Monday to today (inclusive)
         
         # Pace = weekly total ÷ days elapsed in current week
@@ -275,7 +421,7 @@ class ExpenseAnalytics:
                     'symbol': '▲',
                     'percentage': percentage,
                     'direction': 'increase',
-                    'color': '#E67E22'  # Orange (awareness)
+                    'color': '#C00000'  # Darker red (more prominent warning)
                 }
             else:
                 # Decrease (spending less)
@@ -303,11 +449,8 @@ class ExpenseAnalytics:
         if current_date is None:
             current_date = datetime.now()
         
-        # Filter out future expenses
-        past_expenses = [
-            e for e in expenses 
-            if datetime.strptime(e['date'], '%Y-%m-%d').date() <= current_date.date()
-        ]
+        # Filter out future expenses using helper method
+        past_expenses = ExpenseAnalytics._filter_past_expenses(expenses, current_date)
         
         if not past_expenses:
             return 0.0, 0
@@ -341,11 +484,8 @@ class ExpenseAnalytics:
         if current_date is None:
             current_date = datetime.now()
         
-        # Filter out future expenses
-        past_expenses = [
-            e for e in expenses 
-            if datetime.strptime(e['date'], '%Y-%m-%d').date() <= current_date.date()
-        ]
+        # Filter out future expenses using helper method
+        past_expenses = ExpenseAnalytics._filter_past_expenses(expenses, current_date)
         
         if not past_expenses:
             return 0.0, "No expenses"

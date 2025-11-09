@@ -19,6 +19,7 @@ from typing import Dict, List, Tuple, Optional
 from tkinter import messagebox, filedialog
 from error_logger import log_info, log_warning, log_error
 import config
+from date_utils import DateUtils
 
 
 class DataImporter:
@@ -285,15 +286,13 @@ class DataImporter:
                     return False, f"Month {month_key}: expense {idx} has description too long (>{500} chars)"
                 
                 # Validate date format and reasonable range
-                try:
-                    expense_date = datetime.strptime(expense["date"], "%Y-%m-%d")
-                    
-                    # Check date is in reasonable range (2000-2100)
-                    if expense_date.year < 2000 or expense_date.year > 2100:
-                        return False, f"Month {month_key}: expense {idx} has date outside reasonable range ({expense['date']})"
-                    
-                except ValueError:
+                expense_date = DateUtils.parse_date(expense["date"])
+                if not expense_date:
                     return False, f"Month {month_key}: expense {idx} has invalid date format"
+                
+                # Check date is in reasonable range (2000-2100)
+                if expense_date.year < 2000 or expense_date.year > 2100:
+                    return False, f"Month {month_key}: expense {idx} has date outside reasonable range ({expense['date']})"
         
         return True, ""
     
@@ -382,7 +381,7 @@ class DataImporter:
                 today = datetime.now().date()
                 monthly_total = sum(
                     expense['amount'] for expense in merged_expenses
-                    if datetime.strptime(expense['date'], '%Y-%m-%d').date() <= today
+                    if (dt := DateUtils.parse_date(expense['date'])) and dt.date() <= today
                 )
                 
                 # Save merged data

@@ -1,6 +1,475 @@
 # LiteFinPad Changelog
 
-## 🔧 Version 3.5.3 - System Tray & Status Bar Enhancements - October 21-25, 2025
+## 🚀 Version 3.6 - Budget Threshold & Visual Refinements - October 27 - November 2, 2025
+
+### **Summary**
+v3.6 introduces the **Budget Threshold feature** with a clickable dialog for setting monthly spending limits, **Description Suggestions** dropdown to assist with expense entry, and visual color refinements to improve the dashboard's readability. The version also includes critical bug fixes for Tkinter validation issues, code quality improvements through date utilities consolidation, and defensive code cleanup to reduce unnecessary checks.
+
+**Development Status:**
+- ✅ Feature Complete (November 2, 2025)
+- 📦 Built on stable v3.5.3 foundation
+- 🎯 Budget threshold tracking now available
+- 📝 Description suggestions feature added
+- 🧹 Code quality improvements completed
+
+---
+
+### ✨ **New Features**
+
+#### **Description Suggestions** 📝 NEW
+- **Added**: Description suggestion dropdown for expense descriptions
+  - Tracks description usage history in `description_history.json`
+  - Loads filtered suggestions based on partial text input (minimum 2 characters)
+  - Shows up to 5 suggestions sorted by usage frequency and recency
+  - Displays last used amount as hint (e.g., "Groceries  $78.00")
+  - Available in Quick Add dialog and Add Expense dialog
+  - **Manual activation**: Press Down arrow or click dropdown button to view suggestions
+  - **Note**: Dropdown does not auto-open due to Tkinter framework limitations (programmatic opening blocks user input)
+- **Settings**: Configurable via `settings.ini` [AutoComplete] section
+  - `show_on_focus`: Load top suggestions when field receives focus (default: true)
+  - `min_chars`: Minimum characters before filtering suggestions (default: 2)
+  - `max_suggestions`: Maximum suggestions to display (default: 5)
+  - `max_descriptions`: Maximum descriptions to track (default: 50)
+
+#### **Budget Threshold Tracking** 💰 NEW
+- **Added**: "vs. Budget" label in Spending Analysis section
+  - Displays between "Weekly Pace" and "Previous Month"
+  - Shows difference from monthly budget with color coding:
+    - 🟢 Green: Under budget
+    - 🔴 Red: Over budget
+    - ⚪ Gray: Budget not set
+  - Status displayed below amount (e.g., "(Under)" or "(Over)")
+  - Reads from `settings.ini` [Budget] section
+
+#### **Budget Dialog** 🎯 NEW
+- **Added**: Clickable budget labels open dialog to set monthly threshold
+  - Click on "vs. Budget" label to open dialog
+  - Displays current budget threshold (or "Not Set")
+  - Blank entry field with integrated numpad
+  - Input validation (amount format, max 10 characters)
+  - Saves to `settings.ini` persistently
+  - Updates dashboard immediately after saving
+  - Follows `ExpenseAddDialog` pattern for consistency
+
+---
+
+### 🎨 **Visual Refinements**
+
+#### **Color Scheme Improvements**
+- **Enhanced**: Dashboard label colors for better readability
+  - "Weekly Pace": Darker orange (`#E67E22`)
+  - "vs. Budget": Dark navy blue (`#1A3A52`)
+  - "Previous Month" indicator (↑): Red for increases (`#E74C3C`)
+  - "Previous Month" label: Vibrant purple (`#9B59B6`)
+  - "Day" / "Week" labels: Darker navy (`#2C5F8D`)
+  - "Daily Average": Dark teal (`#16A085`)
+  - "Weekly Average": Dark amber (`#D68910`)
+
+#### **Layout Adjustments**
+- **Refined**: Spacing in Current Progress section
+  - Day/Week labels grouped and centered
+  - Daily/Weekly averages grouped and centered
+  - Consistent 25px spacing between label groups
+- **Refined**: Spending Analysis section
+  - 5px spacing between Weekly Pace, vs. Budget, and Previous Month
+  - Budget status displayed below amount for compact layout
+
+---
+
+### 🐛 **Critical Bug Fixes**
+
+#### **Tkinter Validation Event Loop Deadlock** 🔧 FIXED
+- **Fixed**: Application freeze when using pre-filled Entry widgets with validation
+  - **Root Cause**: Pre-filled Entry widgets (`StringVar(value="3000.00")`) created validation state conflict
+  - **Symptom**: Clicking "OK" in budget dialog froze entire application (no error logs)
+  - **Solution**: Blank entry field + separate display label pattern
+    - Entry starts blank (`StringVar(value="")`) - no validation conflicts
+    - Current budget displayed as read-only label above entry
+    - Numpad works correctly with blank entry (append-only logic)
+  - **Impact**: Budget dialog now works reliably without freezing
+  - **Documented**: Added to `AI_REFERENCE_TECH.md` as critical Tkinter gotcha
+
+#### **Settings Manager Threading Fix** 🔧 FIXED
+- **Fixed**: Lock-within-lock deadlock in `settings_manager.py`
+  - `set()` method was calling `save()` while already holding lock
+  - Created internal `_save_unlocked()` method to prevent deadlock
+  - Auto-save now uses unlocked version when lock is already held
+
+#### **Week Progress Display Fix** 🔧 FIXED
+- **Fixed**: Week value displaying beyond calculated total (e.g., "5.2/5" in 5-week month)
+  - Modified `calculate_week_progress()` to cap `precise_week` at `total_weeks`
+  - Ensures display is logically capped until next month
+
+#### **Budget Display Update Fix** 🔧 FIXED (November 3, 2025)
+- **Fixed**: "vs. Budget" metric not updating after setting/changing budget
+  - **Symptom**: Budget could be saved but "vs. Budget" display would not refresh until application restart
+  - **Root Causes**:
+    1. Budget label widgets were not extracted as instance attributes, so update method couldn't access them
+    2. Used `text_color` attribute (CTkLabel) instead of `foreground` (ttk.Label)
+    3. Used `monthly_total` (all expenses) instead of `monthly_total_past` (past expenses only)
+  - **Solution**: 
+    - Added widget extraction for `budget_amount_label` and `budget_status_label`
+    - Fixed widget attribute to use `foreground` for ttk.Label
+    - Updated calculation to use `ExpenseDataManager.calculate_monthly_total()` for consistency
+    - Display now updates immediately after budget changes
+  - **Impact**: Budget feature now fully functional with real-time display updates
+
+#### **Archive Mode Bug Fixes** 🔧 FIXED (November 8, 2025)
+- **Fixed**: Multiple critical issues preventing archive mode from working correctly
+  - **Problems Fixed**:
+    1. Archive mode colors not updating when switching months
+    2. Display values (total, count, progress, analytics) not updating in archive mode
+    3. "+Add Expense" button not disabling in archive mode
+    4. CustomTkinter widget compatibility errors (using `style` parameter incorrectly)
+    5. Tooltip duplication and persistence issues
+  - **Root Causes**:
+    1. Widget type detection wasn't properly identifying CustomTkinter vs ttk widgets
+    2. `main_container` frame wasn't being updated for archive mode
+    3. Using `.config()` instead of `.configure()` for CustomTkinter buttons
+    4. Tooltip event handlers accumulating without proper cleanup
+    5. `update_display()` using incorrect expense filtering for archive mode
+  - **Solutions Applied**:
+    - Added `main_container` parameter to ArchiveModeManager for complete frame updates
+    - Improved widget detection using `isinstance()` and `hasattr('fg_color')` checks
+    - Fixed CustomTkinter button state management (use `.configure()` not `.config()`)
+    - Fixed `update_display()` to show ALL expenses in archive mode (no date filtering)
+    - Fixed tooltip_manager to unbind old handlers before binding new ones
+    - Added proper tooltip cleanup in archive mode transitions
+    - Fixed expense filtering for analytics calculations in archive mode
+  - **Files Modified**: `archive_mode_manager.py`, `gui.py`, `quick_add_helper.py`, `tooltip_manager.py`
+  - **Impact**: Archive mode now fully functional with correct colors, values, button states, and tooltips
+
+---
+
+### ✨ **New Features**
+
+#### **Quick Add Autocomplete** ✨ NEW (November 9, 2025)
+- **Added**: Autocomplete/dropdown menu to description field in inline Quick Add expense form
+  - Now matches functionality of other add expense dialogs (Add Expense Dialog, Quick Add from Tray)
+  - Shows recurring expense patterns and suggestions as users type
+  - Consistent user experience across all expense entry methods
+  - Faster expense entry with intelligent suggestions
+  - Better discoverability of expense patterns
+  - **Files Modified**: `quick_add_helper.py`, `expense_list_page_builder.py`
+  - **Impact**: Improved user experience, faster expense entry workflow, better utilization of recurring expense feature
+
+---
+
+### 🔧 **Code Quality Improvements**
+
+#### **Analytics Method Consolidation** 🔧 NEW (November 8, 2025)
+- **Improved**: Eliminated duplicate expense filtering logic across analytics methods
+  - **Problem**: Same filtering patterns repeated in 5 different methods (`calculate_daily_average`, `calculate_weekly_average`, `calculate_weekly_pace`, `calculate_median_expense`, `calculate_largest_expense`)
+  - **Solution**: Created 4 reusable helper methods to centralize filtering logic:
+    - `_filter_expenses_by_date_range()` - Generic date range filtering
+    - `_filter_expenses_by_month()` - Month-specific filtering
+    - `_filter_expenses_by_week()` - Week-specific filtering
+    - `_filter_past_expenses()` - Simple past-only filtering
+  - **Benefits**:
+    - Single source of truth for filtering logic
+    - Easier maintenance (fix bugs once instead of multiple places)
+    - Better code organization and consistency
+    - No breaking changes (all public APIs unchanged)
+  - **Files Modified**: `analytics.py` - Added helper methods, refactored 5 calculation methods
+  - **Impact**: Improved code maintainability, foundation for future analytics enhancements
+
+#### **Data Loading Exception Handling** 🔧 NEW (November 9, 2025)
+- **Improved**: Narrowed exception handling in data loading/saving operations for better error diagnostics
+  - **Problem**: Broad `Exception` catches in `ExpenseDataManager.load_expenses()` and `save_expenses()` made it difficult to diagnose specific issues (JSON errors vs permission errors vs system errors)
+  - **Solution**: Replaced broad exception handling with specific exception types:
+    - `load_expenses()`: Now catches `FileNotFoundError`, `json.JSONDecodeError`, `PermissionError`, `OSError` specifically before fallback
+    - `save_expenses()`: Now catches `PermissionError`, `OSError` specifically before fallback
+  - **Benefits**:
+    - More specific error messages for users (e.g., "Invalid JSON format" vs "Permission denied")
+    - Better error diagnostics in logs (specific exception types logged)
+    - Easier debugging (identify root cause faster)
+    - Consistent with exception handling refactoring patterns
+  - **Files Modified**: `data_manager.py` - Narrowed exception handling in 2 methods
+  - **Impact**: Improved error reporting and debugging capabilities
+
+#### **Exception Handling Refactoring** 🔧 NEW (November 8, 2025)
+- **Phase 1: Documentation** - Added comprehensive comments explaining framework workarounds
+  - Documented Windows OS requirements for window procedures (must catch all exceptions)
+  - Explained Tkinter limitations requiring defensive programming
+  - Clarified PyInstaller detection as standard pattern (not workaround)
+  - Added comments to 11 locations across `tray_icon.py`, `main.py`, and `window_manager.py`
+  - **Impact**: Future developers understand why broad exceptions are necessary
+
+- **Phase 2: Narrowing Exceptions** - Improved error detection with specific exception handling
+  - Icon loading: Catches `WindowsError`/`OSError`/`AttributeError` specifically, then fallback
+  - Window creation: Catches Win32 errors specifically, then fallback
+  - Dialog cleanup: Catches `tk.TclError`/`AttributeError` specifically, then fallback
+  - GUI queue shutdown: Catches `tk.TclError`/`AttributeError`/`RuntimeError` specifically, then fallback
+  - Window operations: Catches Tkinter errors specifically, then fallback
+  - **Impact**: Better error categorization (DEBUG for expected, ERROR/WARNING for unexpected)
+  - **Files Updated**: `tray_icon.py` (2 locations), `main.py` (2 locations), `window_manager.py` (4 locations)
+
+- **Phase 3: Win32 Decorator Pattern** - Reduced code duplication in Win32 API error handling
+  - Created `@win32_safe` decorator for reusable Win32 exception handling
+  - Applied to 5 methods: `create_window()`, `add_to_tray()`, `update_tooltip()`, `remove_from_tray()`, `show_context_menu()`
+  - Catches Win32-specific exceptions (`WindowsError`, `OSError`, `AttributeError`) with configurable defaults
+  - Reduced ~20 lines of duplicate exception handling code
+  - **Impact**: DRY principle applied, improved maintainability, functionality preserved
+  - **Files Updated**: `tray_icon.py`
+
+- **Testing**: ✅ All phases tested and verified working correctly
+- **Documentation**: Created `CODEBASE_STYLE_PROFILE.md`, `REFACTORING_PLAN.md`, and `REFACTORING_COMPLETE_SUMMARY.md`
+
+#### **Defensive Checks Analysis & Removal** 📊 NEW (November 2, 2025)
+- **Analyzed**: 28 `hasattr()` checks across 9 files
+  - ✅ 22 NECESSARY (79%) - Legitimate runtime checks (tooltip management, PyInstaller detection, platform-specific handling, initialization safety)
+  - ⚠️ 3 REMOVABLE (10%) - Obvious defensive code (remaining in `gui.py`, low priority)
+  - ✅ 4 REMOVED (14%) - Successfully cleaned up unnecessary checks
+- **Removed**: 4 unnecessary defensive checks
+  - `main.py` line 716: `status_manager` check in `export_expenses_dialog()`
+  - `main.py` line 726: `status_manager` check in `import_expenses_dialog()`
+  - `window_manager.py` line 170: `stay_on_top_var` check in `toggle_stay_on_top()`
+  - `window_manager.py` line 178: `stay_on_top_var` check in `_apply_topmost_setting()`
+- **Verified**: `archive_mode_manager` checks in `gui.py` are NECESSARY
+  - Attempted removal caused `AttributeError` during startup
+  - Methods called during early initialization before manager exists
+  - Checks re-introduced for stability
+- **Impact**: Cleaner code, zero functional changes, thoroughly tested
+- **Documented**: See `docs/internal/DEFENSIVE_CHECKS_ANALYSIS.md` for complete analysis
+
+#### **Settings Manager Module** ⚙️ NEW
+- **Created**: `settings_manager.py` - Centralized settings management system
+  - Thread-safe operations with lock protection
+  - Atomic file writes (temp → verify → rename) prevent corruption
+  - Type-safe getters with automatic conversion (str, int, float, bool)
+  - Auto-creates missing sections and keys
+  - Singleton pattern for global access
+  - Comprehensive validation and error handling
+- **Migrated**: 4 files to use Settings Manager
+  - `expense_table.py` - Sort preferences
+  - `export_data.py` - Export location
+  - `error_logger.py` - Debug mode
+  - `dashboard_page_builder.py` - Budget threshold (NEW)
+- **Impact**:
+  - Thread-safe concurrent access protection
+  - No more corrupted settings files (atomic writes)
+  - Consistent validation across all settings operations
+
+#### **Date Utilities Consolidation** 📅
+- **Created**: `date_utils.py` - Centralized date operations module
+  - 19 utility methods for consistent date handling
+  - Clean API with proper error handling
+  - Single source of truth for date operations
+- **Consolidated**: 23 instances of duplicate date parsing across 8 files
+  - Eliminated ~40 lines of duplicate `try-except` blocks
+  - Improved code readability and maintainability
+
+---
+
+### 📝 **Documentation Updates**
+
+#### **Technical Documentation**
+- **Updated**: `AI_REFERENCE_TECH.md`
+  - Added "Tkinter Entry Validation with Pre-filled Text - Event Loop Deadlock" section
+  - Documented pre-filled Entry widget gotcha with validation
+  - Included evidence (logs), root cause analysis, and solution pattern
+  - Critical reference for future Tkinter dialog development
+
+#### **User Documentation**
+- **Updated**: `BEGINNER_THOUGHTS.md`
+  - Added Section 13: "The Budget Dialog Debugging Marathon: When AI Gets It Wrong"
+  - Documented collaborative debugging process
+  - Emphasized importance of user feedback in identifying issues
+  - Lessons on questioning AI diagnoses when evidence doesn't match
+
+---
+
+### 🧪 **Testing**
+
+#### **Budget Feature Testing**
+- ✅ Budget dialog opens correctly with current threshold displayed
+- ✅ Numpad works perfectly with blank entry field
+- ✅ Budget saves successfully without freezing or crashing
+- ✅ Budget display updates immediately after saving
+- ✅ Color coding works correctly (green/red/gray)
+- ✅ Clickable labels respond to mouse clicks
+- ✅ Settings persist across application restarts
+
+#### **Visual Testing**
+- ✅ All color changes applied successfully
+- ✅ Layout spacing adjustments working as expected
+- ✅ Week progress capped correctly at total weeks
+- ✅ Previous month indicator shows red for increases
+
+---
+
+### 📝 **Documentation Updates** (Agent 1 & Agent 5 - November 2, 2025)
+
+#### **New Documentation Created**
+- **DEFENSIVE_CHECKS_ANALYSIS.md** - Comprehensive analysis of 28 `hasattr()` checks
+  - Categorization with detailed rationale
+  - Phase 1 implementation and Phase 2 recommendations
+- **WORKTREE_EXPLANATION.md** - Guide for multi-agent worktree management
+  - Main project vs. worktree locations
+  - Best practices for multi-agent collaboration
+- **PROJECT_ANALYSIS_AND_OPPORTUNITIES.md** - Updated project analysis
+  - Code quality assessment
+  - Refactoring opportunities
+  - Multi-agent collaboration strategy
+- **MULTI_AGENT_WORK_SUMMARY.md** - Summary of multi-agent collaboration
+  - Agent roles and contributions
+  - Phase 1 & Phase 2 details
+- **docs/developer/API_REFERENCE.md** - Comprehensive API documentation
+- **docs/developer/QUICK_START.md** - Developer onboarding guide
+- **docs/developer/ARCHITECTURE.md** - System architecture overview
+- **docs/README.md** - Updated with improved navigation
+
+---
+
+### 📊 **Version 3.6 Statistics**
+
+**Files Modified:**
+- `gui.py` - Budget dialog implementation + 3 defensive checks removed
+- `dashboard_page_builder.py` - Budget display and color refinements
+- `config.py` - New color constants and dialog dimensions
+- `main.py` - Description suggestions integration in Quick Add dialog
+- `expense_table.py` - Description suggestions integration in Add Expense dialog
+- `description_autocomplete.py` - NEW: Description history management module
+- `widgets/autocomplete_entry.py` - NEW: Description suggestions combobox widget
+- `settings.ini` - Auto-complete configuration section added
+- `analytics.py` - Week progress cap fix
+- `settings_manager.py` - Threading fix
+- `settings.ini` - Budget section added
+
+**New Files:**
+- `date_utils.py` - Date utilities module
+- `settings_manager.py` - Settings management module
+
+**Lines of Code:**
+- Budget dialog: ~140 lines (dialog + numpad + validation)
+- Budget display: ~50 lines (labels + color coding + clickable)
+- Color refinements: ~15 color constant updates
+
+**Code Quality:**
+- Eliminated ~40 lines of duplicate date parsing
+- Eliminated ~51 lines of duplicate settings logic
+- Removed 3 unnecessary defensive checks (Agent 1)
+- Fixed 3 critical bugs (validation freeze, threading deadlock, week cap)
+
+**Documentation:**
+- 8 new documentation files created (~3,000+ lines)
+- Comprehensive developer onboarding materials
+- Multi-agent collaboration guides
+
+---
+
+## 🚀 Version 3.6 (Phase 1) - Date Utilities & Code Consolidation - October 27-29, 2025
+
+### **Summary**
+Phase 1 of v3.6 focused on **code quality improvements** through the consolidation of duplicate date handling logic into a centralized utilities module. This laid the foundation for the Budget Threshold feature while improving maintainability and consistency.
+
+**Development Status:**
+- ✅ Phase 1 Complete (October 27-29, 2025)
+- 📦 Built on stable v3.5.3 foundation
+- 🎯 Foundation for Budget Threshold feature
+
+---
+
+### ✨ **New Modules**
+
+#### **Date Utilities Module** 📅 NEW
+- **Created**: `date_utils.py` - Centralized date operations module
+  - 19 utility methods for consistent date handling across the application
+  - Clean API with proper error handling (returns `None` instead of exceptions)
+  - Well-documented with docstrings and usage examples
+  - **Methods Include**:
+    - `parse_date()` - Parse YYYY-MM-DD strings to datetime objects
+    - `format_date()` - Format datetime objects consistently
+    - `get_month_folder_name()` - Generate data folder names
+    - `get_previous_month()` / `get_next_month()` - Month navigation
+    - `is_valid_date()` - Date validation
+    - And 14 more date utility methods
+  - **Benefits**:
+    - Single source of truth for date operations
+    - Consistent date handling across all 8 modules
+    - Easier to update date formats in the future
+    - Better error handling and debugging
+
+---
+
+### 🔧 **Code Quality Improvements**
+
+#### **Settings Manager Module** ⚙️ NEW
+- **Created**: `settings_manager.py` - Centralized settings management system
+  - Thread-safe operations with lock protection
+  - Atomic file writes (temp → verify → rename) prevent corruption
+  - Type-safe getters with automatic conversion (str, int, float, bool)
+  - Auto-creates missing sections and keys
+  - Singleton pattern for global access
+  - Comprehensive validation and error handling
+- **Migrated**: 3 files to use Settings Manager
+  - `expense_table.py` - Sort preferences (16 lines → 6 lines, -73%)
+  - `export_data.py` - Export location (32 lines → 10 lines, -69%)
+  - `error_logger.py` - Debug mode (16 lines → 3 lines, -81%)
+- **Impact**:
+  - Eliminated 51 lines of duplicate settings logic
+  - Thread-safe concurrent access protection
+  - No more corrupted settings files (atomic writes)
+  - Consistent validation across all settings operations
+- **Example**:
+  ```python
+  # Before: Manual configparser with try-except blocks
+  try:
+      config = configparser.ConfigParser()
+      config.read('settings.ini')
+      value = config.get('Section', 'key', fallback='default')
+  except Exception:
+      value = 'default'
+  
+  # After: Clean, type-safe utility
+  settings = get_settings_manager()
+  value = settings.get('Section', 'key', default='default', value_type=str)
+  ```
+
+#### **Date Utilities Consolidation** 📅 NEW
+- **Consolidated**: 23 instances of duplicate date parsing across 8 files
+  - `expense_table.py` - 5 instances replaced
+  - `analytics.py` - 9 instances replaced  
+  - `gui.py` - 3 instances replaced
+  - `main.py` - 2 instances replaced
+  - `dashboard_page_builder.py` - 2 instances replaced
+  - `export_data.py` - 2 instances replaced
+  - `import_data.py` - 2 instances replaced
+  - `data_manager.py` - 1 instance replaced
+- **Impact**:
+  - Eliminated ~40 lines of duplicate `try-except` date parsing blocks
+  - Improved code readability with clean utility calls
+  - Reduced maintenance burden (update once, apply everywhere)
+  - Consistent error handling across all date operations
+- **Example**:
+  ```python
+  # Before: Scattered throughout codebase
+  try:
+      date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+  except ValueError:
+      # handle error
+  
+  # After: Clean, consistent utility call
+  date_obj = DateUtils.parse_date(date_str)
+  if date_obj:
+      # use date_obj
+  ```
+
+#### **Combined v3.6 Code Quality Metrics** 📊
+- **New Modules Created**: 2 (`date_utils.py`, `settings_manager.py`)
+- **Total Code Reduction**: ~91 lines of duplicate logic eliminated
+- **Files Improved**: 11 files refactored
+- **New Utility Methods**: 19 date utilities + 12 settings methods
+- **Improved Safety**: Thread-safe settings, atomic writes, consistent validation
+
+---
+
+### 🐛 **Bug Fixes**
+*None in this release - focus was on code quality*
+
+---
+
+## 🔧 Version 3.5.3 - Archive Mode, Build Optimizations & Privacy Fixes - October 21-27, 2025
 
 ### **Summary**
 v3.5.3 brings **professional system tray improvements**, a **minimal status bar** for important action feedback, **streamlined export workflow**, **flexible date selection**, and **intelligent month-to-month spending comparisons**. The system tray icon now features a right-click context menu for quick access to common actions. A new status bar provides purposeful, non-intrusive feedback for critical operations. The export dialog has been enhanced with a default save location feature, eliminating repetitive file picker navigation. Date pickers now support cross-month selection (up to 2 months back), enabling retroactive expense entry and month-end transaction handling. The analytics dashboard now shows at-a-glance spending trend indicators comparing the current/viewed month against the previous month.

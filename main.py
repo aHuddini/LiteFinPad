@@ -25,17 +25,42 @@ from dialog_helpers import DialogHelper
 from window_manager import WindowManager
 from month_viewer import MonthViewer
 import config
+from date_utils import DateUtils
+from description_autocomplete import DescriptionHistory
+from widgets import AutoCompleteEntry
 
-# Set DPI awareness for Windows 11 crisp text rendering
-try:
-    # Set process DPI awareness to prevent blurry text
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
-except AttributeError:
-    # Fallback for older Windows versions
-    try:
-        ctypes.windll.user32.SetProcessDPIAware()
-    except AttributeError:
-        pass
+def _configure_process_dpi_awareness():
+    """
+    Configure process-level DPI awareness for crisp text on high-DPI displays.
+    
+    Tries multiple methods in order of preference for Windows version compatibility.
+    This prevents blurry text on high-resolution displays (4K, etc.).
+    
+    Returns:
+        bool: True if any method succeeded, False if all failed
+    """
+    dpi_methods = [
+        # (library, method_name, arguments, description)
+        (ctypes.windll.shcore, 'SetProcessDpiAwareness', (1,), 'Windows 8.1+'),
+        (ctypes.windll.user32, 'SetProcessDPIAware', (), 'Windows Vista+'),
+    ]
+    
+    for lib, method_name, args, win_version in dpi_methods:
+        try:
+            method = getattr(lib, method_name)
+            method(*args)
+            log_debug(f"Process DPI awareness configured using {method_name} ({win_version})")
+            return True
+        except (AttributeError, OSError):
+            # Method not available on this Windows version
+            continue
+    
+    # None worked - log for debugging but continue (DPI awareness is optional UI polish)
+    log_debug("Process DPI awareness not configured (older Windows or unavailable)")
+    return False
+
+# Configure DPI awareness at module level (before creating windows)
+_configure_process_dpi_awareness()
 
 # Setup debug logger
 
@@ -54,6 +79,7 @@ class ExpenseTracker:
         self.viewed_month = self.month_viewer.viewed_month
         self.viewing_mode = self.month_viewer.viewing_mode
         
+        # Note: current_month is already in YYYY-MM format from month_viewer
         self.data_folder = f"data_{self.current_month}"
         self.expenses_file = os.path.join(self.data_folder, "expenses.json")
         self.calculations_file = os.path.join(self.data_folder, "calculations.json")
@@ -63,6 +89,10 @@ class ExpenseTracker:
         self.open_dialogs = []  # Track open dialogs for proper cleanup
         self.gui_queue = queue.Queue()  # Thread-safe queue for GUI operations from background threads
         self._shutting_down = False  # Guard flag to prevent duplicate shutdown calls
+        
+        # Initialize description history for auto-complete
+        self.description_history = DescriptionHistory()
+        
         self.load_data()
         
         # Create main window
@@ -107,31 +137,47 @@ class ExpenseTracker:
         self.root.withdraw()
         
     def configure_dpi_scaling(self):
-        """Configure DPI scaling for crisp text rendering on Windows 11"""
+        """
+        Configure Tkinter DPI scaling for crisp text on high-DPI displays.
+        
+        Queries the window's DPI and sets Tkinter's scaling factor accordingly.
+        Falls back to default scaling if detection fails.
+        """
         try:
-            # Get the current DPI scaling factor
-            dpi = ctypes.windll.user32.GetDpiForWindow(self.root.winfo_id())
-            if dpi > 0:
-                # Calculate scaling factor (96 is standard DPI)
-                scaling_factor = dpi / 96.0
-                
-                # Set tkinter scaling to match system DPI
-                self.root.tk.call('tk', 'scaling', scaling_factor)
-                
-                print(f"DPI scaling configured: {scaling_factor:.2f}x (DPI: {dpi})")
-            else:
-                # Fallback: use a reasonable default
+            # Get window handle and query DPI
+            window_handle = self.root.winfo_id()
+            dpi = ctypes.windll.user32.GetDpiForWindow(window_handle)
+            
+            if dpi <= 0:
+                # Invalid DPI value returned
+                log_debug("DPI detection returned invalid value, using default scaling")
                 self.root.tk.call('tk', 'scaling', 1.0)
-                print("Using default DPI scaling")
+                return
+            
+            # Calculate scaling factor (96 DPI is standard/100% scaling)
+            scaling_factor = dpi / 96.0
+            
+            # Apply scaling to Tkinter
+            self.root.tk.call('tk', 'scaling', scaling_factor)
+            log_debug(f"Tkinter DPI scaling configured: {scaling_factor:.2f}x (DPI: {dpi})")
+            
+        except (AttributeError, OSError) as e:
+            # Expected on older Windows or if window handle not ready
+            log_debug(f"DPI scaling not configured (expected on older Windows): {e}")
+            self.root.tk.call('tk', 'scaling', 1.0)
+            
         except Exception as e:
-            print(f"DPI scaling configuration failed: {e}")
-            # Fallback to default scaling
+            # Unexpected error - log as warning for debugging
+            log_warning(f"Unexpected error configuring DPI scaling: {e}")
             self.root.tk.call('tk', 'scaling', 1.0)
         
     def get_icon_path(self):
         """Get the correct icon path for both development and PyInstaller builds"""
         try:
-            # Check if we're running as a PyInstaller bundle
+            # PyInstaller detection: Standard pattern for detecting bundled executables.
+            # _MEIPASS is the documented PyInstaller attribute that contains the temp
+            # directory path where bundled files are extracted. This is the official
+            # way to detect PyInstaller builds (not a workaround).
             if hasattr(sys, '_MEIPASS'):
                 # PyInstaller mode: try primary location first
                 icon_path = os.path.join(sys._MEIPASS, 'icon.ico')
@@ -192,6 +238,9 @@ class ExpenseTracker:
             self.close_all_dialogs()
             
             # 2. Stop tray icon before destroying window
+            # Defensive check: tray_icon_manager may not exist if initialization failed
+            # or if shutdown occurs before full initialization. Initialization order can
+            # vary, and shutdown sequence must be resilient to partial initialization.
             if hasattr(self, 'tray_icon_manager') and self.tray_icon_manager:
                 self.tray_icon_manager.stop()
             
@@ -273,7 +322,10 @@ class ExpenseTracker:
         from tkinter import messagebox
         
         # Parse the expense date to determine target month
-        expense_date = datetime.strptime(expense_dict['date'], "%Y-%m-%d")
+        expense_date = DateUtils.parse_date(expense_dict['date'])
+        if not expense_date:
+            return "Error: Invalid expense date"
+        
         target_month = expense_date.strftime("%Y-%m")  # e.g., "2025-09"
         
         # Check if expense belongs to current month, past month, or future month
@@ -368,7 +420,7 @@ class ExpenseTracker:
             if message:
                 messagebox.showinfo("Cross-Month Save", message)
         
-        dialog = ExpenseAddDialog(self.root, on_add_expense)
+        dialog = ExpenseAddDialog(self.root, on_add_expense, self.description_history)
         self.open_dialogs.append(dialog)  # Track the dialog
         
         # Set up cleanup when dialog is destroyed
@@ -395,6 +447,9 @@ class ExpenseTracker:
             log_info(f"[DIALOG] === Quick Add Dialog Creation Started at {time.time():.3f} ===")
             
             # Prevent multiple dialogs from opening
+            # Defensive check: _quick_add_dialog_open may not exist on first call.
+            # This flag is set during dialog creation, so we check existence before
+            # accessing to handle the initial state gracefully.
             if hasattr(self, '_quick_add_dialog_open') and self._quick_add_dialog_open:
                 log_info("[DIALOG] Dialog already open, ignoring request")
                 return
@@ -489,7 +544,21 @@ class ExpenseTracker:
             desc_label = ttk.Label(desc_frame, text="Description:")
             desc_label.pack(anchor=tk.W)
             
-            desc_entry = ttk.Entry(desc_frame, font=config.Fonts.LABEL)
+            # Auto-complete entry for description
+            def get_suggestions(partial_text, limit=None):
+                """Get suggestions, accepting optional limit parameter"""
+                if limit is not None:
+                    return self.description_history.get_suggestions(partial_text, limit=limit)
+                else:
+                    return self.description_history.get_suggestions(partial_text)
+            
+            desc_entry = AutoCompleteEntry(
+                desc_frame,
+                get_suggestions_callback=get_suggestions,
+                show_on_focus=self.description_history.should_show_on_focus(),
+                min_chars=self.description_history.get_min_chars(),
+                font=config.Fonts.LABEL
+            )
             desc_entry.pack(fill=tk.X, pady=(5, 0))
             
             # Buttons frame
@@ -534,6 +603,13 @@ class ExpenseTracker:
                     
                     self.expenses.append(expense_dict)
                     self.monthly_total += sanitized['amount']
+                    
+                    # Track description for auto-complete
+                    self.description_history.add_or_update(
+                        sanitized['description'],
+                        sanitized['amount']
+                    )
+                    
                     self.save_data()
                     self.gui.update_display()
                     self.tray_icon_manager.update_tooltip()
@@ -579,11 +655,21 @@ class ExpenseTracker:
             
             def handle_description_enter(event):
                 """Enter in description field submits the form"""
+                # Check if dropdown is visible - if so, let widget handle it
+                # Widget's handler will apply suggestion and return "break"
+                if desc_entry.dropdown_visible:
+                    # Let widget handle it (will run after this handler)
+                    # Widget returns "break" which prevents form submission
+                    return None  # Let widget's handler run
+                # Dropdown not visible - submit form
                 on_add()
-                return "break"  # Prevent default behavior
+                return "break"
             
             amount_entry.bind('<Return>', handle_amount_enter)
-            desc_entry.bind('<Return>', handle_description_enter)
+            # CRITICAL: Use add='+' to preserve widget's handler
+            # Handlers run in reverse order, so this runs first, then widget's handler
+            # If dropdown visible, widget returns "break" preventing this handler's form submission
+            desc_entry.entry.bind('<Return>', handle_description_enter, add='+')
             dialog.bind('<Escape>', lambda e: on_cancel())
             
             # Show the dialog now that it's fully configured and positioned
@@ -616,7 +702,10 @@ class ExpenseTracker:
             def check_if_should_close():
                 if not dialog.winfo_exists():
                     return
-                # Don't auto-close if showing a messagebox
+                # Tkinter workaround: Track messagebox state to prevent recursive calls.
+                # Tkinter doesn't provide native state tracking for messageboxes, and
+                # showing a messagebox while another is open can cause UI freezes or
+                # unexpected behavior. This custom flag is the standard workaround.
                 if getattr(dialog, '_showing_messagebox', False):
                     return
                 focused = dialog.focus_get()
@@ -653,7 +742,12 @@ class ExpenseTracker:
                     if hasattr(dialog, 'dialog') and dialog.dialog.winfo_exists():
                         dialog.dialog.destroy()
                         log_debug("Dialog destroyed successfully")
+                except (tk.TclError, AttributeError) as e:
+                    # Dialog already destroyed or widget doesn't exist
+                    # This is normal during shutdown or if dialog was already closed
+                    log_debug(f"Dialog already destroyed: {e}")
                 except Exception as e:
+                    # Unexpected error destroying dialog
                     log_error(f"Error destroying dialog: {e}")
             self.open_dialogs.clear()
             log_debug("All dialogs closed")
@@ -673,7 +767,8 @@ class ExpenseTracker:
         """Show export dialog for exporting expenses to Excel or PDF"""
         try:
             # Use the new export system with dialog and status bar callback
-            status_callback = self.gui.status_manager.show if hasattr(self.gui, 'status_manager') else None
+            # Note: status_manager is guaranteed to exist after GUI initialization
+            status_callback = self.gui.status_manager.show
             export_expenses(self.expenses, self.current_month, status_callback)
         except Exception as e:
             log_error("Error opening export dialog", e)
@@ -683,7 +778,8 @@ class ExpenseTracker:
         """Show file picker and import expense data from JSON backup"""
         try:
             # Use the import system with status bar callback
-            status_callback = self.gui.status_manager.show if hasattr(self.gui, 'status_manager') else None
+            # Note: status_manager is guaranteed to exist after GUI initialization
+            status_callback = self.gui.status_manager.show
             import_expense_backup(self, status_callback=status_callback)
         except Exception as e:
             log_error("Error importing backup", e)
@@ -718,11 +814,22 @@ class ExpenseTracker:
         
         # Schedule next queue check (if application is still running)
         try:
+            # Defensive check: root may not exist during shutdown or if initialization failed.
+            # winfo_exists() checks if Tkinter widget is still valid (not destroyed).
+            # Both checks are necessary because shutdown can occur in any order.
             if hasattr(self, 'root') and self.root.winfo_exists():
                 self.root.after(config.Threading.GUI_QUEUE_POLL_MS, self._process_gui_queue)
-        except Exception:
-            # Application is shutting down, Tkinter already destroyed - this is expected
-            pass
+        except (tk.TclError, AttributeError) as e:
+            # Expected during shutdown: Tkinter widgets destroyed, root window closed.
+            # TclError: Tkinter already destroyed
+            # AttributeError: root object deleted
+            log_debug(f"GUI queue stopped (shutdown): {e}")
+        except RuntimeError as e:
+            # Tkinter main loop ended
+            log_debug(f"GUI queue stopped (main loop ended): {e}")
+        except Exception as e:
+            # Unexpected error - log for debugging
+            log_warning(f"Unexpected error in GUI queue: {e}")
         
     def run(self):
         """Run the application"""

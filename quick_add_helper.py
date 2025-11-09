@@ -33,8 +33,9 @@ Usage:
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+import customtkinter as ctk
 import config
-from widgets import CollapsibleDateCombobox
+from widgets import CollapsibleDateCombobox, AutoCompleteEntry
 from expense_table import ExpenseData
 from validation import InputValidation
 
@@ -54,7 +55,8 @@ class QuickAddHelper:
     
     def __init__(self, parent_widget, expense_tracker, on_add_callback=None, 
                  status_manager=None, page_manager=None, table_manager=None,
-                 update_metrics_callback=None, count_tracker=None, gui_instance=None):
+                 update_metrics_callback=None, count_tracker=None, gui_instance=None,
+                 description_history=None):
         """
         Initialize the Quick Add Helper.
         
@@ -68,6 +70,7 @@ class QuickAddHelper:
             update_metrics_callback: Optional callback to update expense metrics
             count_tracker: Optional count tracker for table refresh sync
             gui_instance: Optional GUI instance for tooltip creation
+            description_history: Optional DescriptionHistory instance for autocomplete
         """
         self.parent = parent_widget
         self.expense_tracker = expense_tracker
@@ -78,6 +81,7 @@ class QuickAddHelper:
         self.update_metrics_callback = update_metrics_callback
         self.count_tracker = count_tracker
         self.gui = gui_instance
+        self.description_history = description_history
         
         # UI elements (will be created in create_ui())
         self.amount_var = None
@@ -100,7 +104,7 @@ class QuickAddHelper:
         
         # Row 1: Amount and Description
         row1_container = ttk.Frame(self.frame)
-        row1_container.pack(fill=tk.X, pady=(0, 10))
+        row1_container.pack(fill=tk.X, pady=(0, 3))  # Reduced from 10 to 3 to bring date/button closer
         
         # Amount field (left, reduced width)
         amount_frame = ttk.Frame(row1_container)
@@ -119,14 +123,35 @@ class QuickAddHelper:
             validate='key', 
             validatecommand=vcmd
         )
-        self.amount_entry.pack(pady=(2, 0))
+        self.amount_entry.pack(pady=(2, 0))  # 2px gap between label and entry
         
         # Description field (right, reduced width)
         desc_frame = ttk.Frame(row1_container)
         desc_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Label(desc_frame, text="Description:", font=config.Fonts.LABEL).pack(anchor=tk.W)
-        self.description_entry = ttk.Entry(desc_frame, font=config.Fonts.ENTRY)
-        self.description_entry.pack(fill=tk.X, pady=(2, 0))
+        
+        # Use AutoCompleteEntry if description_history is available, otherwise plain Entry
+        if self.description_history:
+            # Auto-complete entry with recurring expense suggestions
+            def get_suggestions(partial_text, limit=None):
+                """Get suggestions, accepting optional limit parameter"""
+                if limit is not None:
+                    return self.description_history.get_suggestions(partial_text, limit=limit)
+                else:
+                    return self.description_history.get_suggestions(partial_text)
+            
+            self.description_entry = AutoCompleteEntry(
+                desc_frame,
+                get_suggestions_callback=get_suggestions,
+                show_on_focus=self.description_history.should_show_on_focus(),
+                min_chars=self.description_history.get_min_chars(),
+                font=config.Fonts.ENTRY
+            )
+            self.description_entry.pack(fill=tk.X, pady=(2, 0))  # 2px gap between label and entry
+        else:
+            # Plain entry (fallback if no description_history)
+            self.description_entry = ttk.Entry(desc_frame, font=config.Fonts.ENTRY)
+            self.description_entry.pack(fill=tk.X, pady=(2, 0))  # 2px gap between label and entry
         
         # Bind Enter key for sequential field navigation
         def handle_amount_enter(event):
@@ -140,11 +165,18 @@ class QuickAddHelper:
             return "break"  # Prevent default behavior
         
         self.amount_entry.bind('<Return>', handle_amount_enter)
-        self.description_entry.bind('<Return>', handle_description_enter)
+        # Bind Enter key - for AutoCompleteEntry, bind to underlying entry widget
+        # CRITICAL: Bind with add='+' so widget's handler can run first if needed
+        if hasattr(self.description_entry, 'entry'):
+            # AutoCompleteEntry - bind to underlying entry widget
+            self.description_entry.entry.bind('<Return>', handle_description_enter, add='+')
+        else:
+            # Plain Entry widget
+            self.description_entry.bind('<Return>', handle_description_enter)
         
         # Row 2: Date and Add button
         row2_container = ttk.Frame(self.frame)
-        row2_container.pack(fill=tk.X)
+        row2_container.pack(fill=tk.X, pady=(0, 0))  # No bottom padding
         
         # Date field (left) - using collapsible date combobox widget
         date_frame = ttk.Frame(row2_container)
@@ -153,20 +185,25 @@ class QuickAddHelper:
         
         # Create collapsible date combobox (all 12 months with accordion behavior)
         self.date_combo = CollapsibleDateCombobox(date_frame)
-        self.date_combo.pack(pady=(2, 0))
+        self.date_combo.pack(pady=(2, 0))  # 2px gap between label and combobox
         
-        # Add Item button (right)
+        # Add Item button (right) - using CustomTkinter with green color
         button_frame = ttk.Frame(row2_container)
         button_frame.pack(side=tk.LEFT, padx=(15, 0))
         # Add spacer to align button with entry fields
         ttk.Label(button_frame, text=" ", font=config.Fonts.LABEL).pack()
-        self.add_button = ttk.Button(
+        self.add_button = ctk.CTkButton(
             button_frame, 
-            text="Add Item", 
+            text="+ Add Item", 
             command=self.add_expense,
-            style='Modern.TButton'
+            corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
+            height=30,  # Match other buttons
+            font=config.Fonts.BUTTON,
+            fg_color=config.Colors.GREEN_PRIMARY,  # Green color like Add Expense button
+            hover_color=config.Colors.GREEN_HOVER,
+            text_color="white"
         )
-        self.add_button.pack(pady=(2, 0))
+        self.add_button.pack(pady=(2, 0))  # 2px gap after spacer label
         
         return self.frame
     
@@ -191,6 +228,7 @@ class QuickAddHelper:
             return
         
         # Validate description
+        # AutoCompleteEntry uses .get() method, plain Entry also uses .get()
         description = self.description_entry.get().strip()
         if not description:
             messagebox.showerror(config.Messages.TITLE_ERROR, config.Messages.DESCRIPTION_REQUIRED)
@@ -210,21 +248,27 @@ class QuickAddHelper:
         # Add expense to correct month folder (handles cross-month routing)
         message = self.expense_tracker.add_expense_to_correct_month(expense_dict)
         
-        # Call the update callback if provided
-        if self.on_add_callback:
-            self.on_add_callback()
-        
-        # Refresh the table if we're on the expense list page
+        # Refresh the table FIRST if we're on the expense list page (before other callbacks)
+        # This ensures the table shows the new expense immediately
         if self.page_manager and self.table_manager:
             from page_manager import PageManager
             if self.page_manager.is_on_page(PageManager.PAGE_EXPENSE_LIST):
+                # Reload the table with updated expenses (includes the newly added expense)
+                # load_expenses already calls refresh_display internally
                 self.table_manager.load_expenses(self.expense_tracker.expenses)
+                
+                # Update metrics immediately after table refresh
                 if self.update_metrics_callback:
                     self.update_metrics_callback()
+                
                 # Sync the count tracker after programmatic table refresh
                 # This prevents the next user action from being misdetected
                 if self.count_tracker:
                     self.count_tracker[0] = len(self.expense_tracker.expenses)
+        
+        # Call the update callback if provided (updates dashboard display)
+        if self.on_add_callback:
+            self.on_add_callback()
         
         # Show status bar message if expense was saved to a different month
         if self.status_manager:
@@ -255,7 +299,13 @@ class QuickAddHelper:
             self.amount_entry.config(state=state)
         
         if self.description_entry:
-            self.description_entry.config(state=state)
+            # Handle both AutoCompleteEntry and plain Entry widgets
+            if hasattr(self.description_entry, 'combo'):
+                # AutoCompleteEntry - configure the underlying combobox
+                self.description_entry.combo.config(state=state)
+            else:
+                # Plain Entry widget
+                self.description_entry.config(state=state)
         
         if self.date_combo:
             # Combobox uses 'readonly' for normal state
@@ -263,7 +313,14 @@ class QuickAddHelper:
             self.date_combo.combo.config(state=combo_state)
         
         if self.add_button:
-            self.add_button.config(state=state)
+            # Check if it's a CustomTkinter widget (use configure) or ttk/tk widget (use config)
+            # CustomTkinter buttons have fg_color attribute and don't have config() method
+            if isinstance(self.add_button, ctk.CTkButton) or (hasattr(self.add_button, 'fg_color') and not hasattr(self.add_button, 'config')):
+                # CustomTkinter CTkButton path - use configure
+                self.add_button.configure(state=state)
+            else:
+                # Legacy ttk.Button or tk.Button path - use config
+                self.add_button.config(state=state)
             
             # Update tooltip if provided and GUI instance available
             if self.gui:
@@ -290,7 +347,13 @@ class QuickAddHelper:
             self.amount_var.set('')
         
         if self.description_entry:
-            self.description_entry.delete(0, tk.END)
+            # Handle both AutoCompleteEntry and plain Entry widgets
+            if hasattr(self.description_entry, 'entry_var'):
+                # AutoCompleteEntry - clear using StringVar
+                self.description_entry.entry_var.set('')
+            else:
+                # Plain Entry widget
+                self.description_entry.delete(0, tk.END)
         
         if self.date_combo:
             # Reset date to today using widget's method

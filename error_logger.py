@@ -6,7 +6,6 @@ Error logging system for LiteFinPad
 import logging
 import os
 from datetime import datetime
-import configparser
 
 class ErrorLogger:
     """Centralized error logging for LiteFinPad"""
@@ -17,28 +16,24 @@ class ErrorLogger:
     
     def _load_debug_setting(self):
         """
-        Load debug mode setting from settings.ini
+        Load debug mode setting from settings
         
         Returns:
-            logging level (INFO or DEBUG) based on settings.ini
+            logging level (INFO or DEBUG) based on settings
         """
-        config = configparser.ConfigParser()
-        settings_file = 'settings.ini'
-        
-        # Default to INFO level
-        log_level = logging.INFO
-        
-        if os.path.exists(settings_file):
-            try:
-                config.read(settings_file)
+        # Use simple file-based check to avoid circular imports during initialization
+        # (settings_manager imports error_logger functions, so we can't import it here)
+        try:
+            import configparser
+            config = configparser.ConfigParser()
+            if os.path.exists('settings.ini'):
+                config.read('settings.ini')
                 debug_mode = config.getboolean('Logging', 'debug_mode', fallback=False)
-                if debug_mode:
-                    log_level = logging.DEBUG
-            except Exception:
-                # Silently fall back to INFO level if config reading fails
-                pass
+                return logging.DEBUG if debug_mode else logging.INFO
+        except Exception:
+            pass
         
-        return log_level
+        return logging.INFO
     
     def setup_logger(self):
         """Setup the logging configuration"""

@@ -17,7 +17,9 @@ from typing import List, Dict, Optional, Callable
 from validation import InputValidation, ValidationPresets, ValidationResult
 import config
 from dialog_helpers import DialogHelper
-from widgets import CollapsibleDateCombobox
+from widgets import CollapsibleDateCombobox, AutoCompleteEntry
+from date_utils import DateUtils
+from settings_manager import get_settings_manager
 
 
 class ExpenseData:
@@ -159,44 +161,18 @@ class ExpenseTableManager:
         self.last_page_btn.pack(side=tk.LEFT)
     
     def _load_sort_preferences(self):
-        """Load sort preferences from settings.ini"""
-        try:
-            import configparser
-            settings = configparser.ConfigParser()
-            settings_path = os.path.join(os.path.dirname(__file__), 'settings.ini')
-            
-            if os.path.exists(settings_path):
-                settings.read(settings_path)
-                if 'Table' in settings:
-                    self.sort_column = settings.get('Table', 'sort_column', fallback=config.TreeView.DEFAULT_SORT_COLUMN)
-                    self.sort_order = settings.get('Table', 'sort_order', fallback=config.TreeView.DEFAULT_SORT_ORDER)
-        except Exception:
-            # If loading fails, use defaults (already set in __init__)
-            pass
+        """Load sort preferences from settings"""
+        settings = get_settings_manager()
+        self.sort_column = settings.get('Table', 'sort_column', 
+                                        default=config.TreeView.DEFAULT_SORT_COLUMN)
+        self.sort_order = settings.get('Table', 'sort_order', 
+                                       default=config.TreeView.DEFAULT_SORT_ORDER)
     
     def _save_sort_preferences(self):
-        """Save sort preferences to settings.ini"""
-        try:
-            import configparser
-            settings = configparser.ConfigParser()
-            settings_path = os.path.join(os.path.dirname(__file__), 'settings.ini')
-            
-            # Read existing settings
-            if os.path.exists(settings_path):
-                settings.read(settings_path)
-            
-            # Update Table section
-            if 'Table' not in settings:
-                settings.add_section('Table')
-            settings.set('Table', 'sort_column', self.sort_column)
-            settings.set('Table', 'sort_order', self.sort_order)
-            
-            # Write back to file
-            with open(settings_path, 'w') as f:
-                settings.write(f)
-        except Exception:
-            # Silently fail if settings can't be saved
-            pass
+        """Save sort preferences to settings"""
+        settings = get_settings_manager()
+        settings.set('Table', 'sort_column', self.sort_column)
+        settings.set('Table', 'sort_order', self.sort_order)
     
     def _on_column_click(self, column: str):
         """Handle column header click for sorting"""
@@ -238,7 +214,7 @@ class ExpenseTableManager:
         
         if self.sort_column == "Date":
             # Sort by date (datetime object)
-            return sorted(expenses, key=lambda x: datetime.strptime(x.date, "%Y-%m-%d"), reverse=reverse)
+            return sorted(expenses, key=lambda x: DateUtils.parse_date(x.date) or datetime.min, reverse=reverse)
         elif self.sort_column == "Amount":
             # Sort by amount (float)
             return sorted(expenses, key=lambda x: x.amount, reverse=reverse)
@@ -247,7 +223,7 @@ class ExpenseTableManager:
             return sorted(expenses, key=lambda x: x.description.lower(), reverse=reverse)
         else:
             # Fallback to date descending
-            return sorted(expenses, key=lambda x: datetime.strptime(x.date, "%Y-%m-%d"), reverse=True)
+            return sorted(expenses, key=lambda x: DateUtils.parse_date(x.date) or datetime.min, reverse=True)
     
     def _update_pagination_controls(self, total_pages: int):
         """Update pagination control visibility and state"""
@@ -368,15 +344,15 @@ class ExpenseTableManager:
             
             for expense in page_expenses:
                 # Format date for display
-                try:
-                    date_obj = datetime.strptime(expense.date, "%Y-%m-%d")
+                date_obj = DateUtils.parse_date(expense.date)
+                if date_obj:
                     formatted_date = date_obj.strftime("%m/%d/%Y")
                     
                     # Check if this is a future expense
                     is_future = date_obj.date() > today
                     if is_future:
                         formatted_date = formatted_date + " (Future)"
-                except ValueError:
+                else:
                     formatted_date = expense.date
                     is_future = False
                 
@@ -396,10 +372,10 @@ class ExpenseTableManager:
             
             # Update status - only count expenses up to today
             total = sum(e.amount for e in self.expenses 
-                       if datetime.strptime(e.date, "%Y-%m-%d").date() <= today)
+                       if (dt := DateUtils.parse_date(e.date)) and dt.date() <= today)
             count = len(self.expenses)
             future_count = sum(1 for e in self.expenses 
-                             if datetime.strptime(e.date, "%Y-%m-%d").date() > today)
+                             if (dt := DateUtils.parse_date(e.date)) and dt.date() > today)
             
             if future_count > 0:
                 self.status_label.config(text=f"{count} expenses ({future_count} future)")
@@ -568,8 +544,9 @@ class ExpenseTableManager:
 class ExpenseAddDialog:
     """Modern add expense dialog with improved UX"""
     
-    def __init__(self, parent, on_add: Callable[[ExpenseData], None]):
+    def __init__(self, parent, on_add: Callable[[ExpenseData], None], description_history=None):
         self.on_add = on_add
+        self.description_history = description_history
         
         # Create dialog using DialogHelper
         self.dialog = DialogHelper.create_dialog(
@@ -605,14 +582,18 @@ class ExpenseAddDialog:
         
         def handle_description_enter(event):
             """Enter in description field submits the form"""
+            # Widget's KeyPress handler returns "break" if dropdown is visible
+            # Otherwise, submit form
             self.add_expense()
-            return "break"  # Prevent default behavior
+            return "break"
             
         DialogHelper.bind_escape_to_close(self.dialog)
         
         # Bind Enter to move between fields (amount → description → submit)
         self.amount_entry.bind('<Return>', handle_amount_enter)
-        self.description_entry.bind('<Return>', handle_description_enter)
+        # CRITICAL: Bind with add='+' so widget's handler can run first
+        # Widget's handler returns "break" if dropdown is visible, preventing this handler
+        self.description_entry.entry.bind('<Return>', handle_description_enter, add='+')
     
     def setup_number_pad(self, parent_frame):
         """Setup calculator-style number pad for amount entry"""
@@ -728,12 +709,44 @@ class ExpenseAddDialog:
         # Number pad frame
         self.setup_number_pad(main_frame)
         
-        # Description field
+        # Description field with auto-complete
         ttk.Label(main_frame, text="Description:", font=("Segoe UI", 10)).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         self.description_var = tk.StringVar()
-        self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
-                                          font=config.Fonts.ENTRY)
-        self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
+        
+        if self.description_history:
+            # Auto-complete entry
+            def get_suggestions(partial_text, limit=None):
+                """Get suggestions, accepting optional limit parameter"""
+                if limit is not None:
+                    return self.description_history.get_suggestions(partial_text, limit=limit)
+                else:
+                    return self.description_history.get_suggestions(partial_text)
+            
+            desc_frame = ttk.Frame(main_frame)
+            desc_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
+            desc_frame.columnconfigure(0, weight=1)
+            
+            self.description_entry = AutoCompleteEntry(
+                desc_frame,
+                get_suggestions_callback=get_suggestions,
+                show_on_focus=self.description_history.should_show_on_focus(),
+                min_chars=self.description_history.get_min_chars(),
+                font=config.Fonts.ENTRY
+            )
+            self.description_entry.grid(row=0, column=0, sticky=(tk.W, tk.E))
+            # CRITICAL: Replace entry_var and rebind trace callback
+            # This ensures text changes trigger dropdown updates
+            old_var = self.description_entry.entry_var
+            self.description_entry.entry_var = self.description_var
+            # Rebind trace callback to new StringVar (required for dropdown to work)
+            self.description_entry.entry_var.trace('w', self.description_entry._on_text_change)
+            # Update the entry widget to use our StringVar
+            self.description_entry.entry.config(textvariable=self.description_var)
+        else:
+            # Plain entry (fallback if no description_history)
+            self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
+                                              font=config.Fonts.ENTRY)
+            self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
         # Date field with collapsible month combobox
         ttk.Label(main_frame, text="Date:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
@@ -769,9 +782,12 @@ class ExpenseAddDialog:
                 return
             
             # Validate all fields using preset validator
+            # Get description value - AutoCompleteEntry has get() method, Entry uses StringVar
+            desc_value = self.description_entry.get() if hasattr(self.description_entry, 'get') else self.description_var.get()
+            
             result = ValidationPresets.manual_add_expense(
                 self.amount_var.get(),
-                self.description_var.get(),
+                desc_value,
                 date_str
             )
             
@@ -783,7 +799,11 @@ class ExpenseAddDialog:
                 if result.error_field == "amount":
                     self.amount_entry.focus()
                 elif result.error_field == "description":
-                    self.description_entry.focus()
+                    # Handle both AutoCompleteEntry and regular Entry
+                    if hasattr(self.description_entry, 'focus_set'):
+                        self.description_entry.focus_set()
+                    else:
+                        self.description_entry.focus()
                 elif result.error_field == "date":
                     self.date_combo.combo.focus()
                 return
@@ -796,6 +816,13 @@ class ExpenseAddDialog:
                 date=sanitized['date'],
                 amount=sanitized['amount'],
                 description=sanitized['description']
+            )
+            
+            # Track description for auto-complete (if history manager available)
+            if self.description_history:
+                self.description_history.add_or_update(
+                    sanitized['description'],
+                    sanitized['amount']
             )
             
             # Add expense
@@ -938,7 +965,11 @@ class ExpenseEditDialog:
                 if result.error_field == "amount":
                     self.amount_entry.focus()
                 elif result.error_field == "description":
-                    self.description_entry.focus()
+                    # Handle both AutoCompleteEntry and regular Entry
+                    if hasattr(self.description_entry, 'focus_set'):
+                        self.description_entry.focus_set()
+                    else:
+                        self.description_entry.focus()
                 elif result.error_field == "date":
                     self.date_combo.combo.focus()
                 return

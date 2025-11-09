@@ -40,6 +40,10 @@ class Dialog:
     ABOUT_WIDTH = 450
     ABOUT_HEIGHT = 480
     
+    # Budget Dialog
+    BUDGET_WIDTH = 400
+    BUDGET_HEIGHT = 670  # Increased to accommodate buttons with proper padding (was 650)
+    
     # Export Dialog
     EXPORT_WIDTH = 500
     EXPORT_HEIGHT = 535
@@ -90,20 +94,29 @@ class Colors:
     # Info/Blue
     BLUE_PRIMARY = '#0078D4'  # Headers, links, progress labels
     BLUE_LINK = '#0078D4'  # Clickable links (About dialog, etc.)
-    BLUE_NAVY = '#4A8FCE'  # Day/Week progress labels
+    BLUE_NAVY = '#4A8FCE'  # Day/Week progress labels (original)
+    BLUE_NAVY_DARK = '#3A7FBE'  # Day/Week progress labels (darker variant)
+    BLUE_DARK_NAVY = '#1E3A8A'  # vs. Budget label (darker navy blue)
     BLUE_SELECTED = '#0078d4'  # Treeview selection
     
     # Warning/Red
     RED_PRIMARY = '#8B0000'  # Daily average, largest expense
+    RED_INCREASE = '#C00000'  # Previous month increased spending indicator (darker red)
     
     # Alert/Orange
     ORANGE_PRIMARY = '#E67E00'  # Weekly pace
+    ORANGE_DARK = '#CC6600'  # Weekly pace label (darker orange)
     
     # Archive/Purple
     PURPLE_ARCHIVE = '#4A4A8A'  # Archive mode accent color
     
     # Trend/Purple
-    PURPLE_PRIMARY = '#4A4A8A'  # Previous month, trend analysis
+    PURPLE_PRIMARY = '#4A4A8A'  # Previous month, trend analysis (original)
+    PURPLE_VIBRANT = '#6B2599'  # Previous month label (vibrant purple, slightly darker)
+    
+    # Averages (non-primary colors)
+    TEAL_DARK = '#008B8B'  # Daily Average label (dark cyan/teal)
+    AMBER_DARK = '#B8860B'  # Weekly Average label (dark goldenrod)
     
     # === Button States ===
     BUTTON_ACTIVE_BG = '#e0e0e0'
@@ -345,6 +358,14 @@ class Messages:
     EXPORT_FAILED = "Failed to export expenses"
     EXPORT_NO_EXPENSES = "No expenses to export for {month} {year}"
     
+    # Export/Display labels (reused in multiple export formats)
+    LABEL_TOTAL_EXPENSES = "Total Expenses:"
+    LABEL_TOTAL_AMOUNT = "Total Amount:"
+    
+    # Data operation errors
+    ERROR_LOADING_DATA = "Error loading data"
+    ERROR_SAVING_DATA = "Error saving data"
+    
     # Status bar messages
     STATUS_EXPENSE_ADDED = "Expense added successfully"
     STATUS_EXPENSE_UPDATED = "Expense updated successfully"
@@ -352,6 +373,44 @@ class Messages:
     STATUS_DATA_LOADED = "Data loaded successfully"
     STATUS_EXPORT_COMPLETE = "Export complete"
     STATUS_IMPORT_COMPLETE = "Import complete"
+
+# ============================================================================
+# CUSTOMTKINTER THEME CONFIGURATION
+# ============================================================================
+
+class CustomTkinterTheme:
+    """
+    CustomTkinter theme and appearance settings.
+    
+    These constants configure the visual appearance when using CustomTkinter
+    widgets. CustomTkinter provides modern styling while keeping Tkinter's
+    underlying functionality.
+    """
+    
+    # === Appearance Mode ===
+    # Options: "light", "dark", "system" (follows system theme)
+    APPEARANCE_MODE = "light"  # Light mode to match existing light gray backgrounds
+    
+    # === Color Theme ===
+    # Options: "blue", "green", "dark-blue"
+    COLOR_THEME = "blue"  # Default color scheme
+    
+    # === Widget Appearance ===
+    CORNER_RADIUS = 8  # Rounded corners for buttons, entries, etc.
+    BORDER_WIDTH = 1  # Border width for widgets
+    
+    # === Widget Dimensions ===
+    BUTTON_HEIGHT = 35  # Standard button height
+    ENTRY_HEIGHT = 35  # Standard entry field height
+    
+    # === Widget Spacing ===
+    BUTTON_PADY = 5  # Vertical padding for buttons
+    ENTRY_PADY = 5  # Vertical padding for entries
+    
+    # === Note ===
+    # CustomTkinter is a visual styling library only.
+    # It does NOT fix functional limitations (like auto-complete dropdown issues).
+    # CTkComboBox has the same limitations as ttk.Combobox.
 
 # ============================================================================
 # FILE PATTERNS

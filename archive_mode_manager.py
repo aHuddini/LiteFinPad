@@ -16,6 +16,7 @@ from tkinter import ttk
 from datetime import datetime
 import calendar
 import config
+import customtkinter as ctk
 
 
 class ArchiveModeManager:
@@ -32,6 +33,7 @@ class ArchiveModeManager:
     
     def __init__(self, root, expense_tracker, page_manager=None, 
                  main_frame=None, expense_list_frame=None,
+                 main_container=None,
                  month_label=None, add_expense_btn=None, 
                  quick_add_helper=None, table_manager=None,
                  tooltip_creator=None,
@@ -59,6 +61,7 @@ class ArchiveModeManager:
         self.page_manager = page_manager
         self.main_frame = main_frame
         self.expense_list_frame = expense_list_frame
+        self.main_container = main_container
         self.month_label = month_label
         self.add_expense_btn = add_expense_btn
         self.quick_add_helper = quick_add_helper
@@ -117,20 +120,30 @@ class ArchiveModeManager:
             with open('version.txt', 'r') as f:
                 version = f.read().strip()
         except:
-            version = "3.5.3"
+            version = "Unknown"  # Fallback if version.txt is missing
         
-        # Format month for display
-        month_obj = datetime.strptime(viewed_month, "%Y-%m")
-        month_name = month_obj.strftime('%B %Y')
+        # Format month for display using month_viewer's formatter
+        # Use include_archive_indicator=False for month label (archive indicator is in window title)
+        month_display_text = self.expense_tracker.month_viewer.format_month_display(
+            viewed_month,
+            include_archive_indicator=False
+        )
         
         if viewing_mode == "archive":
-            self._apply_archive_mode(version, month_name)
+            self._apply_archive_mode(version, month_display_text)
         else:
-            self._apply_normal_mode(version, month_name)
+            self._apply_normal_mode(version, month_display_text)
         
         # Update display to show the correct data
         if self.update_display_callback:
-            self.update_display_callback()
+            try:
+                self.update_display_callback()
+            except Exception as e:
+                from error_logger import log_error
+                log_error(f"Error calling update_display_callback: {e}", e)
+        else:
+            from error_logger import log_warning
+            log_warning("update_display_callback is None - display will not update")
         
         # Update expense list if we're on that page
         if (self.page_manager and self.page_manager.is_on_page("expense_list") 
@@ -139,45 +152,115 @@ class ArchiveModeManager:
             if self.update_metrics_callback:
                 self.update_metrics_callback()
     
-    def _apply_archive_mode(self, version, month_name):
+    def _apply_archive_mode(self, version, month_display_text):
         """Apply archive mode styling to all UI elements."""
+        # Format month name for window title (with archive indicator)
+        month_obj = datetime.strptime(self.expense_tracker.viewed_month, "%Y-%m")
+        month_name = month_obj.strftime('%B %Y')
+        
         # Window title: Show archive mode
         self.root.title(f"LiteFinPad v{version} - 📚 Archive: {month_name}")
         
         # Background: Lavender tint
         self.root.configure(bg=config.Colors.BG_ARCHIVE_TINT)
         
+        # Update main_container (outer frame) to archive style
+        if self.main_container:
+            if isinstance(self.main_container, ctk.CTkFrame):
+                self.main_container.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+        
         # Switch main_frame to archive style
         if self.main_frame:
-            self.main_frame.configure(style='Archive.TFrame')
+            # Check if it's a CustomTkinter widget or ttk widget
+            # Use both isinstance and winfo_class for robust detection
+            is_ctk_frame = isinstance(self.main_frame, ctk.CTkFrame) or hasattr(self.main_frame, 'fg_color')
+            if is_ctk_frame:
+                # CustomTkinter: use fg_color
+                try:
+                    self.main_frame.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring main_frame fg_color: {e}", e)
+            else:
+                # ttk widget: use style
+                try:
+                    self.main_frame.configure(style='Archive.TFrame')
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring main_frame style: {e}", e)
             self.apply_styles_to_widgets(self.main_frame, archive=True)
         
         # Also apply to expense list frame if it exists
         if self.expense_list_frame:
-            self.expense_list_frame.configure(style='Archive.TFrame')
+            # Check if it's a CustomTkinter widget or ttk widget
+            # Use both isinstance and hasattr for robust detection
+            is_ctk_frame = isinstance(self.expense_list_frame, ctk.CTkFrame) or hasattr(self.expense_list_frame, 'fg_color')
+            if is_ctk_frame:
+                # CustomTkinter: use fg_color
+                try:
+                    self.expense_list_frame.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring expense_list_frame fg_color: {e}", e)
+            else:
+                # ttk widget: use style
+                try:
+                    self.expense_list_frame.configure(style='Archive.TFrame')
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring expense_list_frame style: {e}", e)
             self.apply_styles_to_widgets(self.expense_list_frame, archive=True)
         
-        # Month title: Just the month (no archive text since it's in window title)
+        # Month title: Update text and styling for CustomTkinter widget
         if self.month_label:
-            self.month_label.config(text=month_name)
+            # Update month label text with formatted display
+            self.month_label.configure(text=month_display_text)
+            # Keep month label transparent (inherits background from parent frame)
+            # The parent frame will have the archive tint background
+        
+        # Apply archive styling to CustomTkinter widgets in main frame
+        if self.main_frame:
+            self.apply_customtkinter_styles(self.main_frame, archive=True)
         
         # Disable "+ Add Expense" button
         if self.add_expense_btn:
-            self.add_expense_btn.config(state='disabled')
+            # CustomTkinter buttons use configure() not config()
+            if isinstance(self.add_expense_btn, ctk.CTkButton):
+                self.add_expense_btn.configure(state='disabled')
+            else:
+                # ttk button fallback
+                self.add_expense_btn.config(state='disabled')
             # Update button tooltip
             actual_month_name = self.expense_tracker.month_viewer.format_month_display(
                 self.expense_tracker.current_month,
                 include_archive_indicator=False
             )
-            # Destroy old tooltip if exists
-            if hasattr(self.add_expense_btn, 'tooltip'):
-                self.add_expense_btn.tooltip.destroy()
-                del self.add_expense_btn.tooltip
+            # Update tooltip using tooltip_manager's update method (properly unbinds old handlers)
             if self.tooltip_creator:
-                self.tooltip_creator(
-                    self.add_expense_btn,
-                    f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
-                )
+                # Use update method if available, otherwise create
+                if hasattr(self.tooltip_creator, '__self__') and hasattr(self.tooltip_creator.__self__, 'update'):
+                    # tooltip_creator is a method of TooltipManager, use update
+                    self.tooltip_creator.__self__.update(
+                        self.add_expense_btn,
+                        f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
+                    )
+                else:
+                    # Fallback: manually unbind and create
+                    try:
+                        self.add_expense_btn.unbind("<Enter>")
+                        self.add_expense_btn.unbind("<Leave>")
+                    except:
+                        pass
+                    if hasattr(self.add_expense_btn, 'tooltip'):
+                        try:
+                            self.add_expense_btn.tooltip.destroy()
+                        except:
+                            pass
+                        delattr(self.add_expense_btn, 'tooltip')
+                    self.tooltip_creator(
+                        self.add_expense_btn,
+                        f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
+                    )
         
         # Disable Quick Add section (on expense list page)
         if self.quick_add_helper:
@@ -190,7 +273,7 @@ class ArchiveModeManager:
                 tooltip_text=f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
             )
     
-    def _apply_normal_mode(self, version, month_name):
+    def _apply_normal_mode(self, version, month_display_text):
         """Apply normal mode styling to all UI elements."""
         # Window title: Normal
         self.root.title(f"LiteFinPad v{version} - Monthly Expense Tracker")
@@ -198,30 +281,90 @@ class ArchiveModeManager:
         # Background: Light gray (normal)
         self.root.configure(bg=config.Colors.BG_LIGHT_GRAY)
         
+        # Update main_container (outer frame) to normal style
+        if self.main_container:
+            if isinstance(self.main_container, ctk.CTkFrame):
+                self.main_container.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
+        
         # Switch main_frame to normal style
         if self.main_frame:
-            self.main_frame.configure(style='TFrame')
+            # Check if it's a CustomTkinter widget or ttk widget
+            # Use both isinstance and hasattr for robust detection
+            is_ctk_frame = isinstance(self.main_frame, ctk.CTkFrame) or hasattr(self.main_frame, 'fg_color')
+            if is_ctk_frame:
+                # CustomTkinter: use fg_color
+                try:
+                    self.main_frame.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring main_frame fg_color: {e}", e)
+            else:
+                # ttk widget: use style
+                try:
+                    self.main_frame.configure(style='TFrame')
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring main_frame style: {e}", e)
             self.apply_styles_to_widgets(self.main_frame, archive=False)
         
         # Also apply to expense list frame if it exists
         if self.expense_list_frame:
-            self.expense_list_frame.configure(style='TFrame')
+            # Check if it's a CustomTkinter widget or ttk widget
+            # Use both isinstance and hasattr for robust detection
+            is_ctk_frame = isinstance(self.expense_list_frame, ctk.CTkFrame) or hasattr(self.expense_list_frame, 'fg_color')
+            if is_ctk_frame:
+                # CustomTkinter: use fg_color
+                try:
+                    self.expense_list_frame.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring expense_list_frame fg_color: {e}", e)
+            else:
+                # ttk widget: use style
+                try:
+                    self.expense_list_frame.configure(style='TFrame')
+                except Exception as e:
+                    from error_logger import log_error
+                    log_error(f"Error configuring expense_list_frame style: {e}", e)
             self.apply_styles_to_widgets(self.expense_list_frame, archive=False)
         
-        # Month title: Normal text (just month name)
+        # Month title: Update text and styling for CustomTkinter widget
         if self.month_label:
-            self.month_label.config(text=month_name)
+            # Update month label text with formatted display
+            self.month_label.configure(text=month_display_text)
+            # Keep month label transparent (inherits background from parent frame)
+            # The parent frame will have the normal background
+        
+        # Apply normal styling to CustomTkinter widgets in main frame
+        if self.main_frame:
+            self.apply_customtkinter_styles(self.main_frame, archive=False)
         
         # Enable "+ Add Expense" button
         if self.add_expense_btn:
-            self.add_expense_btn.config(state='normal')
-            # Remove tooltip if exists (button is self-explanatory)
-            if hasattr(self.add_expense_btn, 'tooltip'):
-                self.add_expense_btn.tooltip.destroy()
-                del self.add_expense_btn.tooltip
-            # Unbind tooltip event handlers to prevent ghost tooltips
-            self.add_expense_btn.unbind("<Enter>")
-            self.add_expense_btn.unbind("<Leave>")
+            # CustomTkinter buttons use configure() not config()
+            if isinstance(self.add_expense_btn, ctk.CTkButton):
+                self.add_expense_btn.configure(state='normal')
+            else:
+                # ttk button fallback
+                self.add_expense_btn.config(state='normal')
+            # Remove tooltip completely (button is self-explanatory in normal mode)
+            # Use tooltip_manager's destroy method if available
+            if hasattr(self.tooltip_creator, '__self__') and hasattr(self.tooltip_creator.__self__, 'destroy'):
+                # tooltip_creator is a method of TooltipManager, use destroy
+                self.tooltip_creator.__self__.destroy(self.add_expense_btn)
+            else:
+                # Fallback: manually unbind and destroy
+                try:
+                    self.add_expense_btn.unbind("<Enter>")
+                    self.add_expense_btn.unbind("<Leave>")
+                except:
+                    pass
+                if hasattr(self.add_expense_btn, 'tooltip'):
+                    try:
+                        self.add_expense_btn.tooltip.destroy()
+                    except:
+                        pass
+                    delattr(self.add_expense_btn, 'tooltip')
         
         # Enable Quick Add section (on expense list page)
         if self.quick_add_helper:
@@ -270,4 +413,57 @@ class ArchiveModeManager:
             # Recursively check other containers
             elif widget_class in ['Frame', 'Labelframe']:
                 self.apply_styles_to_widgets(widget, archive)
+    
+    def apply_customtkinter_styles(self, parent, archive=True):
+        """
+        Recursively apply archive or normal styles to all CustomTkinter widgets.
+        
+        Args:
+            parent: Parent widget to start from
+            archive: True to apply archive styles, False for normal styles
+        """
+        bg_color = config.Colors.BG_ARCHIVE_TINT if archive else config.Colors.BG_LIGHT_GRAY
+        
+        try:
+            children = parent.winfo_children()
+        except (tk.TclError, AttributeError):
+            # Parent widget doesn't support winfo_children or is destroyed
+            return
+        
+        for widget in children:
+            try:
+                # Update CTkLabel widgets
+                if isinstance(widget, ctk.CTkLabel):
+                    try:
+                        current_fg = widget.cget('fg_color')
+                        # Update labels that use standard background colors
+                        # Keep transparent labels transparent (they inherit from parent)
+                        if current_fg == config.Colors.BG_LIGHT_GRAY or current_fg == config.Colors.BG_ARCHIVE_TINT:
+                            widget.configure(fg_color=bg_color)
+                        # For transparent labels, leave them transparent (parent provides background)
+                    except (tk.TclError, AttributeError, RuntimeError):
+                        # Widget might be destroyed or not fully initialized
+                        pass
+                
+                # Update CTkFrame widgets
+                elif isinstance(widget, ctk.CTkFrame):
+                    try:
+                        current_fg = widget.cget('fg_color')
+                        # Update frames that use standard background colors
+                        if current_fg == config.Colors.BG_LIGHT_GRAY or current_fg == config.Colors.BG_ARCHIVE_TINT:
+                            widget.configure(fg_color=bg_color)
+                        # Keep transparent frames transparent
+                    except (tk.TclError, AttributeError, RuntimeError):
+                        # Widget might be destroyed or not fully initialized
+                        pass
+                
+                # Recursively check all containers (including non-CustomTkinter widgets)
+                try:
+                    self.apply_customtkinter_styles(widget, archive)
+                except (tk.TclError, AttributeError, RuntimeError):
+                    # Widget doesn't support winfo_children or is destroyed
+                    pass
+            except (tk.TclError, AttributeError, RuntimeError):
+                # Widget might be destroyed during iteration
+                continue
 

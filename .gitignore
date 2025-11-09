@@ -31,6 +31,8 @@ dist/
 data_*/
 *.json
 !requirements.txt
+description_history.json
+LiteFinPad_Backup_*.json
 
 # ====================
 # Logs and Errors
@@ -48,6 +50,9 @@ backup_*/
 *.backup
 test_*/
 test_v*/
+exports/
+*.pdf
+*.xlsx
 
 # ====================
 # IDE and Editor
@@ -89,6 +94,13 @@ _personal/
 docs/internal/
 AI_MEMORY.md
 
+# Internal Multi-Agent Session Summaries (private)
+WORKTREE_EXPLANATION.md
+MULTI_AGENT_WORK_SUMMARY.md
+AGENT_5_FINAL_SUMMARY.md
+PROJECT_ANALYSIS_AND_MULTI_AGENT_STRATEGY.md
+DOCUMENTATION_IMPROVEMENTS_SUMMARY.md
+
 # ====================
 # Branding & Design Assets (Working Files)
 # ====================
@@ -100,3 +112,4 @@ _branding/
 LiteFinPad_v3.5.2-Windows-x64.zip
 create_backup.ps1
 _analysis_changelog_gaps.md
+create_release_zip.ps1

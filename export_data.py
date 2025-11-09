@@ -22,6 +22,8 @@ from tkinter import messagebox, filedialog
 from error_logger import log_export_attempt, log_export_success, log_export_error, log_library_check, log_info, log_error, log_warning, log_debug
 import config
 from dialog_helpers import DialogHelper
+from date_utils import DateUtils
+from settings_manager import get_settings_manager
 
 
 class DataExporterV2:
@@ -57,20 +59,15 @@ class DataExporterV2:
         return hashlib.sha256(json_str.encode()).hexdigest()
     
     def _load_export_location(self) -> str:
-        """Load the default export location from settings.ini"""
-        import configparser
+        """Load the default export location from settings"""
         import sys
         
-        try:
-            config_parser = configparser.ConfigParser()
-            config_parser.read('settings.ini')
-            
-            if config_parser.has_section('Export'):
-                location = config_parser.get('Export', 'default_save_location', fallback='')
-                if location and os.path.exists(location):
-                    return location
-        except Exception:
-            pass
+        settings = get_settings_manager()
+        location = settings.get('Export', 'default_save_location', default='')
+        
+        # Validate that location exists
+        if location and os.path.exists(location):
+            return location
         
         # Default to application directory (where .exe or main.py is located)
         if getattr(sys, 'frozen', False):
@@ -83,22 +80,10 @@ class DataExporterV2:
         return app_dir
     
     def _save_export_location(self, location: str):
-        """Save the export location to settings.ini"""
-        import configparser
-        
-        try:
-            config_parser = configparser.ConfigParser()
-            config_parser.read('settings.ini')
-            
-            if not config_parser.has_section('Export'):
-                config_parser.add_section('Export')
-            
-            config_parser.set('Export', 'default_save_location', location)
-            
-            with open('settings.ini', 'w') as f:
-                config_parser.write(f)
-        except Exception as e:
-            log_error("Failed to save export location", e)
+        """Save the export location to settings"""
+        settings = get_settings_manager()
+        if not settings.set('Export', 'default_save_location', location):
+            log_error("Failed to save export location", None)
     
     def _get_shortened_path(self, path: str) -> str:
         """
@@ -236,10 +221,10 @@ class DataExporterV2:
             
             for expense in sorted_expenses:
                 # Format date
-                try:
-                    date_obj = datetime.strptime(expense['date'], "%Y-%m-%d")
+                date_obj = DateUtils.parse_date(expense['date'])
+                if date_obj:
                     formatted_date = date_obj.strftime("%m/%d/%Y")
-                except:
+                else:
                     formatted_date = expense['date']
                 
                 # Write row data
@@ -265,8 +250,8 @@ class DataExporterV2:
             })
             
             worksheet.write(summary_row, 0, 'Summary:', summary_header_format)
-            worksheet.write(summary_row + 1, 0, f'Total Expenses: {len(self.expenses)}')
-            worksheet.write(summary_row + 2, 0, f'Total Amount: ${total_amount:.2f}')
+            worksheet.write(summary_row + 1, 0, f'{config.Messages.LABEL_TOTAL_EXPENSES} {len(self.expenses)}')
+            worksheet.write(summary_row + 2, 0, f'{config.Messages.LABEL_TOTAL_AMOUNT} ${total_amount:.2f}')
             
             if len(self.expenses) > 0:
                 avg_expense = total_amount / len(self.expenses)
@@ -281,8 +266,8 @@ class DataExporterV2:
                 f"Expenses exported successfully!\n\n"
                 f"File: {os.path.basename(save_path)}\n"
                 f"Location: {os.path.dirname(save_path)}\n"
-                f"Total Expenses: {len(self.expenses)}\n"
-                f"Total Amount: ${total_amount:.2f}"
+                f"{config.Messages.LABEL_TOTAL_EXPENSES} {len(self.expenses)}\n"
+                f"{config.Messages.LABEL_TOTAL_AMOUNT} ${total_amount:.2f}"
             )
             
             # Update status bar if callback provided
@@ -383,10 +368,10 @@ class DataExporterV2:
             
             for expense in sorted_expenses:
                 # Format date
-                try:
-                    date_obj = datetime.strptime(expense['date'], "%Y-%m-%d")
+                date_obj = DateUtils.parse_date(expense['date'])
+                if date_obj:
                     formatted_date = date_obj.strftime("%m/%d/%Y")
-                except:
+                else:
                     formatted_date = expense['date']
                 
                 # Truncate description if too long
@@ -424,8 +409,8 @@ class DataExporterV2:
             pdf.cell(0, 8, 'Summary', 0, 1, 'L')
             
             pdf.set_font('Helvetica', '', 10)
-            pdf.cell(0, 6, f'Total Expenses: {len(self.expenses)}', 0, 1, 'L')
-            pdf.cell(0, 6, f'Total Amount: ${total_amount:.2f}', 0, 1, 'L')
+            pdf.cell(0, 6, f'{config.Messages.LABEL_TOTAL_EXPENSES} {len(self.expenses)}', 0, 1, 'L')
+            pdf.cell(0, 6, f'{config.Messages.LABEL_TOTAL_AMOUNT} ${total_amount:.2f}', 0, 1, 'L')
             
             if len(self.expenses) > 0:
                 avg_expense = total_amount / len(self.expenses)
@@ -440,8 +425,8 @@ class DataExporterV2:
                 f"Expenses exported to PDF successfully!\n\n"
                 f"File: {os.path.basename(save_path)}\n"
                 f"Location: {os.path.dirname(save_path)}\n"
-                f"Total Expenses: {len(self.expenses)}\n"
-                f"Total Amount: ${total_amount:.2f}"
+                f"{config.Messages.LABEL_TOTAL_EXPENSES} {len(self.expenses)}\n"
+                f"{config.Messages.LABEL_TOTAL_AMOUNT} ${total_amount:.2f}"
             )
             
             # Update status bar if callback provided
@@ -643,7 +628,7 @@ class DataExporterV2:
         vsep = ttk.Separator(subtitle_frame, orient='vertical')
         vsep.pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
-        expenses_label = ttk.Label(subtitle_frame, text="Total Expenses:", font=('Segoe UI', 10, 'underline'), foreground='#1a1a1a')
+        expenses_label = ttk.Label(subtitle_frame, text=config.Messages.LABEL_TOTAL_EXPENSES, font=('Segoe UI', 10, 'underline'), foreground='#1a1a1a')
         expenses_label.pack(side=tk.LEFT)
         
         expenses_value = ttk.Label(subtitle_frame, text=f" {len(self.expenses)}", font=('Segoe UI', 10), foreground='#1a1a1a')

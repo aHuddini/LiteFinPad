@@ -66,8 +66,15 @@ class WindowManager:
             self._cached_window_y = self._cached_screen_height - window_height - 450
             
             log_debug(f"[WINDOW] Screen info cached: {self._cached_screen_width}x{self._cached_screen_height}, Position: ({self._cached_window_x}, {self._cached_window_y})")
+        except (tk.TclError, AttributeError) as e:
+            # Tkinter workaround: Screen dimension queries can fail on multi-monitor setups,
+            # during display configuration changes, or when window is not yet fully initialized.
+            # TclError: Tkinter window not yet initialized or destroyed
+            # AttributeError: root object missing attributes
+            log_error(f"[WINDOW] ERROR caching screen info (Tkinter error): {e}", e)
         except Exception as e:
-            log_error(f"[WINDOW] ERROR caching screen info: {e}", e)
+            # Unexpected error - ensure window positioning doesn't crash
+            log_error(f"[WINDOW] ERROR caching screen info (unexpected): {e}", e)
     
     def _setup_event_handlers(self):
         """Set up window event handlers"""
@@ -96,8 +103,18 @@ class WindowManager:
                 try:
                     self.gui.update_recent_expenses()
                     self.gui.update_display()
+                except (tk.TclError, AttributeError) as e:
+                    # Tkinter workaround: GUI updates can fail if window is destroyed during
+                    # animation, if widgets are not yet initialized, or during shutdown.
+                    # TclError: Tkinter widgets destroyed
+                    # AttributeError: Widget objects missing attributes
+                    log_error(f"[WINDOW] ERROR updating display (Tkinter error): {e}", e)
+                except RuntimeError as e:
+                    # Tkinter main loop ended or window destroyed
+                    log_error(f"[WINDOW] ERROR updating display (runtime error): {e}", e)
                 except Exception as e:
-                    log_error(f"[WINDOW] ERROR updating display: {e}", e)
+                    # Unexpected error - prevent animation from crashing
+                    log_error(f"[WINDOW] ERROR updating display (unexpected): {e}", e)
             
             # Schedule display update after animation begins (30ms delay)
             self.root.after(30, update_display_async)
@@ -109,8 +126,24 @@ class WindowManager:
             # Set topmost attribute based on stay_on_top setting
             self._apply_topmost_setting()
                 
+        except (tk.TclError, AttributeError) as e:
+            # Tkinter workaround: Window operations can fail during shutdown, if window
+            # is already destroyed, or during display configuration changes.
+            # TclError: Tkinter window destroyed or not initialized
+            # AttributeError: Window object missing attributes
+            log_error(f"[WINDOW] ERROR in show_window (Tkinter error): {e}", e)
+            print(f"Error showing window: {e}")
+            # Fallback: just show the window
+            self.root.deiconify()
+        except RuntimeError as e:
+            # Tkinter main loop ended
+            log_error(f"[WINDOW] ERROR in show_window (runtime error): {e}", e)
+            print(f"Error showing window: {e}")
+            # Fallback: just show the window
+            self.root.deiconify()
         except Exception as e:
-            log_error(f"[WINDOW] ERROR in show_window: {e}", e)
+            # Unexpected error - ensure window can still be shown
+            log_error(f"[WINDOW] ERROR in show_window (unexpected): {e}", e)
             print(f"Error showing window: {e}")
             # Fallback: just show the window
             self.root.deiconify()
@@ -146,8 +179,24 @@ class WindowManager:
             log_debug("[WINDOW] Using fallback withdraw()")
             self.root.withdraw()
             
+        except (tk.TclError, AttributeError) as e:
+            # Tkinter workaround: Window operations can fail during shutdown, if window
+            # is already destroyed, or during display configuration changes.
+            # TclError: Tkinter window destroyed or not initialized
+            # AttributeError: Window object missing attributes
+            log_error(f"[WINDOW] ERROR in hide_window (Tkinter error): {e}", e)
+            print(f"Error in hide animation: {e}")
+            # Fallback: just hide
+            self.root.withdraw()
+        except RuntimeError as e:
+            # Tkinter main loop ended
+            log_error(f"[WINDOW] ERROR in hide_window (runtime error): {e}", e)
+            print(f"Error in hide animation: {e}")
+            # Fallback: just hide
+            self.root.withdraw()
         except Exception as e:
-            log_error(f"[WINDOW] ERROR in hide_window: {e}", e)
+            # Unexpected error - ensure window can still be hidden
+            log_error(f"[WINDOW] ERROR in hide_window (unexpected): {e}", e)
             print(f"Error in hide animation: {e}")
             # Fallback: just hide
             self.root.withdraw()
@@ -166,16 +215,21 @@ class WindowManager:
         self._cache_screen_info()
     
     def toggle_stay_on_top(self):
-        """Toggle stay on top functionality"""
-        if hasattr(self.gui, 'stay_on_top_var'):
-            if self.gui.stay_on_top_var.get():
-                self.root.attributes('-topmost', True)
-            else:
-                self.root.attributes('-topmost', False)
+        """
+        Toggle stay on top functionality.
+        Note: stay_on_top_var is guaranteed to exist after GUI initialization completes.
+        """
+        if self.gui.stay_on_top_var.get():
+            self.root.attributes('-topmost', True)
+        else:
+            self.root.attributes('-topmost', False)
     
     def _apply_topmost_setting(self):
-        """Apply topmost setting based on GUI preference"""
-        if hasattr(self.gui, 'stay_on_top_var') and self.gui.stay_on_top_var.get():
+        """
+        Apply topmost setting based on GUI preference.
+        Note: stay_on_top_var is guaranteed to exist after GUI initialization completes.
+        """
+        if self.gui.stay_on_top_var.get():
             # Stay on top is enabled - keep window on top permanently
             log_debug("[WINDOW] Stay on top enabled")
             self.root.attributes('-topmost', True)

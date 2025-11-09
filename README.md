@@ -1,10 +1,10 @@
-# 💰 LiteFinPad v3.5.3
+# LiteFinPad v3.6
 
 <div align="center">
 
 **A lightweight, offline-first Windows expense tracker with modern UI and powerful features**
 
-![Version](https://img.shields.io/badge/version-3.5.3-blue.svg)
+![Version](https://img.shields.io/badge/version-3.6-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.14-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
@@ -13,140 +13,132 @@
 
 ---
 
-## 📖 Overview
+## Overview
 
-**LiteFinPad** is a streamlined Windows application for tracking monthly personal expenses. Built with Python and Tkinter, it offers a clean interface, system tray integration, and powerful analytics—all while keeping your data 100% offline and under your control.
+**LiteFinPad** is a streamlined Windows application for tracking monthly personal expenses. It offers a clean interface, system tray integration, and core analytics—all while keeping your data 100% offline.
 
 **Perfect for**:
-- 💼 Personal finance tracking
-- 📊 Monthly budget monitoring  
-- 🚀 Quick expense logging without opening apps
-- 🔒 Users who want complete data privacy (no cloud, no accounts)
+- Personal finance tracking
+- Monthly budget monitoring  
+- Quick expense logging without opening apps
+- Users who want complete data privacy (no cloud, no accounts)
 
 ---
 
-## 🆕 What's New in v3.5.3
+## What's New in v3.6
 
-### Major Features & Enhancements (October 2025)
+### Quick Add Autocomplete (November 2025)
 
-v3.5.3 is a **significant feature release** focused on historical data exploration, streamlined workflows, and professional polish. The highlight is **Archive Mode** - a new way to safely view and analyze past months' data with clear visual distinction.
+**New Feature:**
+- Added autocomplete suggestions to the description field in the inline Quick Add expense form
+- Shows recurring expense patterns as you type
+- Consistent experience across all expense entry methods
+- Faster expense entry with intelligent suggestions
 
-**🔍 Archive Mode - View Historical Data:**
-- 📚 **Month Viewer** - Click the month title to explore past expense data
-- 🎨 **Visual distinction** - Lavender background tint when viewing archive months
-- 🔒 **Read-only protection** - All add/edit controls disabled to prevent accidental changes
-- 📊 **Full analytics** - See spending trends, category breakdowns for any month
-- 🔄 **Easy navigation** - Switch between months or return to current month instantly
+### Archive Mode Improvements (November 2025)
 
-**⚡ Workflow Improvements:**
-- 🖱️ **System tray context menu** - Right-click for Quick Add, Open, or Quit
-- 📁 **One-click exports** - Set default save location, stop navigating folders every time
-- 📊 **Spending trend indicators** - See month-over-month changes at a glance (▲▼ icons)
-- ℹ️ **Status bar feedback** - Important actions show brief confirmation messages
+**Fixed Issues:**
+- Archive mode now correctly displays colors and values when viewing past months
+- All analytics and totals update properly in archive mode
+- Add Expense button correctly disables when viewing archived data
+- Improved tooltip behavior and display
 
-**📅 Flexible Date Handling:**
-- 🗓️ **Cross-month selection** - Record expenses up to 2 months back
-- 🖱️ **Mousewheel date picker** - Scroll through months effortlessly
-- 🎯 **Auto-routing** - Expenses save to correct month automatically
+### Code Quality Improvements (October - November 2025)
 
-**📊 Enhanced Expense Table:**
-- ↕️ **Column sorting** - Click headers to sort by Date, Amount, or Description
-- 📄 **Smart pagination** - Auto-appears when you have 16+ expenses
-- 💾 **Remembers preferences** - Your sort choice persists
+**Under the Hood:**
+- Improved error handling and code organization
+- Consolidated duplicate code for better maintainability
+- Enhanced settings and date utility modules
+- Better code documentation and structure
 
-**🛠️ Developer Experience:**
-- 📚 **Organized documentation** - Structured docs/ folder (user/developer guides)
-- ⚡ **Code consolidation** - Removed 64+ lines of duplicate code
-- 📁 **Cleaner project** - Archived 48+ development backups, 90% cleaner root directory
-- 🧹 **Better architecture** - Centralized validation and messaging
-
-### Previous Release: v3.5.2 - Critical Threading Fix for Quick Add Dialog (October 2025)
-
-**Critical Fixes:**
-- 🐛 **Queue-Based Threading System**: Resolved critical GIL threading issue with Quick Add dialog
-  - **Problem**: Tray icon's Win32 message loop runs in background thread; Tkinter is not thread-safe
-  - **Solution**: Implemented thread-safe queue system for GUI operations
-  - **Impact**: Quick Add dialog now works reliably without threading conflicts or crashes
-  - **Technical**: Background thread posts requests to queue; main GUI thread processes them safely
-  - **Bonus**: Restored auto-close behavior when clicking outside dialog
-  - All test scenarios verified (double-click, add expense, cancel, multiple dialogs, threading stress tests)
-
-**Why This Matters:**
-The Quick Add dialog (double-click tray icon) is the fastest way to log expenses. This fix solves a fundamental threading incompatibility between Windows OS interactions (Win32 message loop) and Python's Tkinter GUI framework, ensuring reliable operation on all systems.
+These improvements make the application more stable and easier to maintain, ensuring a better experience for users.
 
 ---
 
-## 📋 Recent Updates (v3.5.1)
+## Previous Releases
 
-### Dialog System Refactoring & Logging Optimization
+### v3.5.3 - Archive Mode & Export Features (October 2025)
 
 **New Features:**
-- 🪟 **Dialog Helper Module**: Centralized dialog creation, positioning, and binding logic
-- 🔍 **Debug Mode Toggle**: Optional verbose logging via `settings.ini` for troubleshooting
+- **Archive Mode** - View historical expense data in read-only mode with visual distinction
+- **System Tray Context Menu** - Right-click menu for quick access (Quick Add, Open, Quit)
+- **One-Click Exports** - Export monthly expenses to Excel or PDF formats
+- **Spending Trend Indicators** - Visual indicators showing spending changes month-to-month
+- **Status Bar** - Feedback bar for important actions
+- **Cross-Month Date Selection** - Expenses automatically route to the correct month folder
+
+**User Experience Improvements:**
+- Mousewheel date picker for easier date selection
+- Expense table sorting by clicking column headers
+- Pagination controls for large expense lists
+- Improved data validation with real-time formatting
+
+### v3.5.2 - Quick Add Dialog Fix (October 2025)
+
+**Critical Fix:**
+- Resolved threading issue with Quick Add dialog (double-click tray icon)
+- Quick Add dialog now works reliably without crashes
+- Restored auto-close behavior when clicking outside dialog
+
+This fix ensures the fastest way to log expenses (Quick Add from tray) works consistently on all systems.
+
+---
+
+## Recent Updates (v3.5.1)
+
+### Dialog System Improvements
+
+**New Features:**
+- Centralized dialog system for consistent behavior
+- Optional debug mode for troubleshooting (via `settings.ini`)
 
 **Performance Improvements:**
-- 📝 **90% Log Reduction**: Comprehensive 3-step logging optimization
-  - Mouse movement logs moved to DEBUG level (~99% reduction)
-  - Window/click detection simplified (~87% reduction)
-  - Export operations streamlined (~75% reduction)
-- 🖥️ **Dialog Display Fixes**: Minor UI improvements for better element visibility
+- Reduced logging overhead for better performance
+- Improved dialog display and element visibility
 
-**Technical:**
-- New `dialog_helpers.py` module with 8 standardized methods
-- Intelligent logging system with user-configurable verbosity
-- All dialogs except Quick Add (GIL threading) refactored for consistency
+### v3.5 - Major Update (October 2025)
 
-**Known Issues:**
-- **Quick Add Dialog**: Cannot use standard `DialogHelper` refactoring due to GIL threading requirements (runs in tray icon's background thread)
+**Improvements:**
+- New modular architecture for better code organization
+- Centralized configuration and settings
+- Improved context menu organization
+- Enhanced maintainability and stability
 
 ---
 
-## 🏗️ What Was New in v3.5
-
-### Major Architectural Refactoring (October 2025)
-
-**Code Quality Improvements:**
-- 📦 **5 New Modules**: Analytics, Data Manager, Validation, NumberPad Widget, Config
-- 📉 **22.5% Code Reduction**: `main.py` reduced from 1,062 to 823 lines
-- 🎨 **Centralized Configuration**: New `config.py` module with ~50+ constants
-- 🎯 **Improved Context Menu**: "Delete Expense" moved to bottom with red color
-- 🔧 **Better Maintainability**: Separation of concerns with modular architecture
-
----
-
-## ✨ Key Features
+## Key Features
 
 ### Core Functionality
-- 📝 **Quick Expense Entry**: Three ways to add expenses (inline, dialog, tray icon)
-- 📊 **Real-time Analytics**: Monthly totals, weekly/daily averages, trends
-- 🗂️ **Organized Data Storage**: Automatic monthly folders, JSON-based
-- 🔍 **Full Expense Management**: View, edit, delete, and search expenses
-- 📤 **Export Options**: Excel (.xlsx) and PDF formats with professional styling
+- **Quick Expense Entry**: Three ways to add expenses (inline, dialog, tray icon)
+- **Real-time Analytics**: Monthly totals, weekly/daily averages, spending trends
+- **Organized Data Storage**: Automatic monthly folders, JSON-based storage
+- **Full Expense Management**: View, edit, delete, and search expenses
+- **Export Options**: Excel (.xlsx) and PDF formats with professional styling
 
 ### User Experience
-- 🎨 **Modern Interface**: Clean, professional design with intuitive navigation
-- ⌨️ **Keyboard Shortcuts**: Enter for navigation, Escape to close dialogs
-- 🖼️ **System Tray Integration**: Always accessible, minimal screen footprint
-- ↗️ **Stay on Top Mode**: Keep tracker visible while working
-- 🎯 **Smart Dialogs**: Auto-focus, intelligent positioning, number pad support
+- **Modern Interface**: Clean, professional design with intuitive navigation
+- **Keyboard Shortcuts**: Enter for navigation, Escape to close dialogs
+- **System Tray Integration**: Always accessible, minimal screen footprint
+- **Stay on Top Mode**: Keep tracker visible while working
+- **Smart Dialogs**: Auto-focus, intelligent positioning, number pad support
 
 ### Technical Highlights
-- 🔒 **Fully Offline**: No internet required, no tracking, no cloud sync
-- 💾 **Automatic Backups**: Monthly archives with zero data loss
-- ⚡ **Lightweight**: ~23 MB distribution, fast startup
-- 🛡️ **Data Validation**: Real-time input validation prevents errors
-- 📦 **Single Executable**: No Python installation required
+- **Fully Offline**: No internet required, no tracking, no cloud sync
+- **Automatic Backups**: Monthly archives with zero data loss
+- **Lightweight**: ~23 MB distribution, fast startup
+- **Data Validation**: Real-time input validation prevents errors
+- **Single Executable**: No Python installation required
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Download Pre-Built Executable (Recommended)
 
-1. Go to the [**Releases**](../../releases) page
-2. Download the latest `LiteFinPad_v3.5.3.zip`
-3. Extract and run `LiteFinPad_v3.5.3.exe`
-4. Look for the icon in your system tray!
+1. Go to the [Releases](https://github.com/aHuddini/LiteFinPad/releases) page
+2. Download the latest release
+3. Extract and run `LiteFinPad_v3.x.x.exe`
+4. Look for the icon in your system tray
 
 **No Python installation required. Just download and run.**
 
@@ -159,7 +151,7 @@ The Quick Add dialog (double-click tray icon) is the fastest way to log expenses
 git clone https://github.com/yourusername/LiteFinPad.git
 cd LiteFinPad
 
-# Install dependencies (use python -m pip for correct Python version)
+# Install dependencies
 python -m pip install -r requirements.txt
 
 # Run the application
@@ -168,27 +160,27 @@ python main.py
 
 ---
 
-## 📚 Usage
+## Usage
 
 ### First Launch
-1. Application starts minimized in your **system tray** (bottom-right corner)
-2. Click the 💰 icon to open the main window
-3. Start adding expenses!
+1. Application starts minimized in your system tray (bottom-right corner)
+2. Click the system tray icon to open the main window
+3. Start adding expenses
 
 ### Adding Expenses (3 Methods)
 
 #### Method 1: Inline Quick Add (Fastest)
-- Located at the bottom of the Expense List page
+- Located at the bottom of the "Expense List" page
 - Type amount → Press Enter → Type description → Press Enter
 - Perfect for rapid consecutive entries
 
 #### Method 2: Add Expense Dialog
-- Click **"+ Add Expense"** button on Expense List page
+- Click "+ Add Expense" button on Expense List page
 - Includes optional number pad for touch screens
 - Amount → Enter → Description → Enter to submit
 
 #### Method 3: Quick Add from Tray (Stealthiest)
-- **Double-click** the system tray icon
+- Double-click the system tray icon
 - Add expense without opening main window
 - Great for quick logging on the go
 
@@ -203,75 +195,42 @@ python main.py
 - **View**: All expenses listed on main "Expense List" tab
 - **Edit**: Right-click any expense → "Edit"
 - **Delete**: Right-click any expense → "Delete"
-- **Export**: Click 📤 "Export" → Choose Excel or PDF
+- **Export**: Click "Export" → Choose Excel or PDF
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
-```
-LiteFinPad/
-├── main.py                  # Application entry point and logic
-├── gui.py                   # Main GUI and layout
-├── expense_table.py         # Expense list and dialogs
-├── tray_icon.py            # System tray integration
-├── export_data.py          # Excel/PDF export functionality
-├── import_data.py          # JSON import validation
-├── window_animation.py     # Slide-out animations
-├── error_logger.py         # Error logging system
-├── version_manager.py      # Version management utilities
-├── requirements.txt        # Python dependencies
-├── icon.ico               # Application icon
-├── version.txt            # Current version number
-│
-├── data_YYYY-MM/          # Monthly expense data (auto-created)
-│   ├── expenses.json
-│   └── calculations.json
-│
-├── build_dev.bat          # Development build script
-├── build_release.bat      # Production build script
-│
-└── docs/
-    ├── README.md                 # Documentation navigation guide
-    ├── user/                     # User-facing documentation
-    │   ├── BUILD_SYSTEM_GUIDE.md
-    │   ├── VERSION_UPDATE_GUIDE.md
-    │   └── CONTRIBUTING.md
-    └── developer/                # Technical reference
-        ├── DEPENDENCIES.md
-        ├── THIRD_PARTY_LICENSES.md
-        └── PROJECT_CLEANUP_COMPLETE.md
-```
+For developers, the project is organized into modular components:
+
+- **Core modules**: `main.py`, `gui.py`, `expense_table.py`, `analytics.py`
+- **System integration**: `tray_icon.py`, `window_animation.py`
+- **Data management**: `export_data.py`, `import_data.py`, `data_manager.py`
+- **Utilities**: `error_logger.py`, `validation.py`, `config.py`
+
+Monthly expense data is stored in `data_YYYY-MM/` folders (auto-created).
+
+For detailed technical documentation, see the `/docs` folder.
 
 ---
 
-## 🔨 Building from Source
+## Building from Source
 
-### Quick Build (Development)
 ```bash
-# Build current version for testing
+# Development build
 build_dev.bat
 
-# Build with version increment (3.0 → 3.1)
-build_dev.bat increment
-```
-
-### Production Release
-```bash
-# Build production-ready executable
+# Production release
 build_release.bat
-
-# Build with major version bump (3.4 → 4.0)
-build_release.bat major
 ```
 
 **Output**: `dist/LiteFinPad_vX.X/LiteFinPad_vX.X.exe`
 
-For detailed build instructions, see [**BUILD_SYSTEM_GUIDE.md**](docs/user/BUILD_SYSTEM_GUIDE.md).
+For complete build instructions and options, see [BUILD_SYSTEM_GUIDE.md](docs/user/BUILD_SYSTEM_GUIDE.md).
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 ### Core Libraries
 | Library | Version | Purpose | License |
@@ -286,28 +245,28 @@ For detailed build instructions, see [**BUILD_SYSTEM_GUIDE.md**](docs/user/BUILD
 | **PyInstaller** | 6.16.0+ | Executable creation |
 | **Python** | 3.11+ | Runtime (3.14 recommended) |
 
-For complete dependency information, see [**DEPENDENCIES.md**](docs/developer/DEPENDENCIES.md).  
-For third-party licenses, see [**THIRD_PARTY_LICENSES.md**](docs/developer/THIRD_PARTY_LICENSES.md).
+For complete dependency information, see [DEPENDENCIES.md](docs/developer/DEPENDENCIES.md).  
+For third-party licenses, see [THIRD_PARTY_LICENSES.md](docs/developer/THIRD_PARTY_LICENSES.md).
 
 ---
 
-## 📊 Version History
+## Version History
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| **3.4** | Oct 19, 2025 | Keyboard shortcuts, Enter navigation, Escape key support |
-| **3.3** | Oct 19, 2025 | Enhanced import validation, real-time input validation |
-| **3.2** | Oct 19, 2025 | Inline Quick Add, expense list enhancement |
-| **3.1** | Oct 18, 2025 | UX enhancements, animation optimization |
-| **3.0** | Oct 17, 2025 | Stable release, slide-out animations |
-| **2.9** | Oct 15, 2025 | UI/UX polish, optimized builds |
-| **2.8** | Oct 14, 2025 | Library optimization, size reduction |
+| **3.6** | Nov 2025 | Archive mode improvements, code quality enhancements |
+| **3.5** | Oct 2025 | Archive mode, export features, system tray improvements |
+| **3.4** | Oct 2025 | Keyboard shortcuts, Enter navigation, Escape key support |
+| **3.3** | Oct 2025 | Enhanced import validation, real-time input validation |
+| **3.2** | Oct 2025 | Inline Quick Add, expense list enhancement |
+| **3.1** | Oct 2025 | UX enhancements, animation optimization |
+| **3.0** | Oct 2025 | Stable release, slide-out animations |
 
-For complete version history, see [**CHANGELOG.md**](CHANGELOG.md).
+For complete version history, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## 🎯 Design Philosophy
+## Design Philosophy
 
 LiteFinPad follows these core principles:
 
@@ -319,7 +278,7 @@ LiteFinPad follows these core principles:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 LiteFinPad is currently a personal project, but contributions are welcome!
 
@@ -347,7 +306,7 @@ build_dev.bat
 
 ---
 
-## 📄 License
+## License
 
 LiteFinPad is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
@@ -356,35 +315,29 @@ LiteFinPad is licensed under the **MIT License**. See [LICENSE](LICENSE) for det
 ### Third-Party Licenses
 This project uses open-source libraries with permissive licenses. All attributions and license texts are available in [THIRD_PARTY_LICENSES.md](docs/developer/THIRD_PARTY_LICENSES.md).
 
----
-
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Built with the help of:
 - **Mark Hammond** - pywin32 library for Windows integration
 - **John McNamara** - xlsxwriter for Excel export
 - **Olivier Plathey** - fpdf library for PDF generation
 - **Python Software Foundation** - Python language and standard library
-- **Claude (Anthropic)** - AI-assisted development and documentation
 
----
-
-## 📞 Support
+## Support
 
 - **Issues**: [GitHub Issues](../../issues)
 - **Documentation**: See `/docs` folder for detailed guides
 - **Build Help**: [BUILD_SYSTEM_GUIDE.md](docs/user/BUILD_SYSTEM_GUIDE.md)
 
----
-
-## 🔮 Future Plans
+## Future Plans
 
 Potential features under consideration (not committed):
-- 📊 Category-based expense tracking
-- 📈 Visual charts and graphs
-- 🔄 Import from CSV/Excel
-- 🌙 Dark mode theme
-- 🌍 Multi-language support
+- Category-based expense tracking
+- Visual charts and graphs
+- Import from CSV/Excel
+- Dark mode theme
+- Multi-language support
+- Local AI parsing
 
 **Note**: LiteFinPad prioritizes simplicity and stability. Features are added conservatively.
 
@@ -392,7 +345,7 @@ Potential features under consideration (not committed):
 
 <div align="center">
 
-**Made with ❤️ for personal finance tracking**
+**Made for personal finance tracking**
 
 ⭐ Star this repo if you find it useful!
 

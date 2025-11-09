@@ -1,0 +1,70 @@
+# Cursor AI Indexing Ignore List
+# Files/folders listed here won't be indexed by Cursor's AI agents
+# This improves performance and reduces irrelevant context
+
+# ====================
+# Build Artifacts (Large, Binary, Not Useful for AI)
+# ====================
+build/
+*.zip
+
+# ====================
+# Cache & Compiled Files
+# ====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# ====================
+# User Data - ALLOWED (User requested visibility)
+# ====================
+# data_*/ - ALLOWED for agent access
+# *.json - ALLOWED for agent access (user data files)
+
+# ====================
+# Backups & Archives (Large, Historical)
+# ====================
+backup_*/
+archive_*/
+*.backup
+
+# ====================
+# Logs - ALLOWED (User requested visibility)
+# ====================
+# logs/ - ALLOWED for agent access
+# *.log - ALLOWED for agent access
+*.txt
+!version.txt
+!requirements.txt
+*.spec
+!LiteFinPad_v*.spec
+
+# ====================
+# Design Assets (Large Images, Not Code)
+# ====================
+_branding/
+*.png
+*.jpg
+*.jpeg
+*.ico
+*.pdn
+*.psd
+
+# ====================
+# Personal/Internal Notes - ALLOWED (User requested visibility)
+# ====================
+# _personal/ - ALLOWED for agent access
+# docs/internal/ - ALLOWED for agent access
+# *_personal* - ALLOWED for agent access
+temp_response.txt
+
+# ====================
+# Virtual Environments - ALLOWED (User requested visibility)
+# ====================
+# venv/ - ALLOWED for agent access
+# env/ - ALLOWED for agent access
+# .venv/ - ALLOWED for agent access
+# ENV/ - ALLOWED for agent access
+

@@ -9,6 +9,8 @@ import json
 import os
 from datetime import datetime
 from error_logger import log_error, log_info, log_warning, log_data_load
+from date_utils import DateUtils
+import config
 
 
 class ExpenseDataManager:
@@ -58,9 +60,29 @@ class ExpenseDataManager:
                     
                     return expenses, monthly_total
                     
+            except FileNotFoundError:
+                # File was deleted between exists() check and open()
+                log_warning(f"Expenses file not found (deleted after check): {expenses_file}")
+                return [], 0.0
+            except json.JSONDecodeError as e:
+                # Invalid JSON format
+                log_error(f"Invalid JSON in {expenses_file}: {e}", e)
+                print(f"{config.Messages.ERROR_LOADING_DATA}: Invalid JSON format - {e}")
+                return [], 0.0
+            except PermissionError as e:
+                # Permission denied reading file
+                log_error(f"Permission denied reading {expenses_file}: {e}", e)
+                print(f"{config.Messages.ERROR_LOADING_DATA}: Permission denied - {e}")
+                return [], 0.0
+            except OSError as e:
+                # Other OS-level errors (disk full, network issues, etc.)
+                log_error(f"OS error reading {expenses_file}: {e}", e)
+                print(f"{config.Messages.ERROR_LOADING_DATA}: System error - {e}")
+                return [], 0.0
             except Exception as e:
-                log_error(f"Error loading data from {expenses_file}", e)
-                print(f"Error loading data: {e}")
+                # Unexpected errors (fallback)
+                log_error(f"Unexpected error loading {expenses_file}: {e}", e)
+                print(f"{config.Messages.ERROR_LOADING_DATA}: {e}")
                 return [], 0.0
         else:
             log_warning(f"Expenses file not found: {expenses_file}")
@@ -105,9 +127,20 @@ class ExpenseDataManager:
             log_info(f"Data saved: {len(expenses)} expenses to {expenses_file}")
             return True
             
+        except PermissionError as e:
+            # Permission denied writing file
+            log_error(f"Permission denied writing to {expenses_file}: {e}", e)
+            print(f"{config.Messages.ERROR_SAVING_DATA}: Permission denied - {e}")
+            return False
+        except OSError as e:
+            # OS-level errors (disk full, network issues, read-only filesystem, etc.)
+            log_error(f"OS error writing to {expenses_file}: {e}", e)
+            print(f"{config.Messages.ERROR_SAVING_DATA}: System error - {e}")
+            return False
         except Exception as e:
-            log_error(f"Error saving data to {expenses_file}", e)
-            print(f"Error saving data: {e}")
+            # Unexpected errors (fallback)
+            log_error(f"Unexpected error saving to {expenses_file}: {e}", e)
+            print(f"{config.Messages.ERROR_SAVING_DATA}: {e}")
             return False
     
     @staticmethod
@@ -137,7 +170,7 @@ class ExpenseDataManager:
         
         total = sum(
             expense['amount'] for expense in expenses
-            if datetime.strptime(expense['date'], '%Y-%m-%d').date() <= today
+            if (dt := DateUtils.parse_date(expense['date'])) and dt.date() <= today
         )
         
         return total

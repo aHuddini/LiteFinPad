@@ -5,6 +5,7 @@ Separates UI construction from update logic for easier maintenance and reusabili
 
 import tkinter as tk
 from tkinter import ttk
+import customtkinter as ctk
 import config
 from analytics import ExpenseAnalytics
 
@@ -47,24 +48,24 @@ class ExpenseListPageBuilder:
                 - 'table_manager': ExpenseTableManager instance
                 - 'count_tracker': Reference to expense count tracker
         """
-        # Create the main expense list frame
-        expense_list_frame = ttk.Frame(self.parent_frame, padding="25 25 25 0")
-        expense_list_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create the main expense list frame - using CTkFrame
+        expense_list_frame = ctk.CTkFrame(self.parent_frame, fg_color="transparent")
+        expense_list_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=15, pady=(8, 2))  # Compact padding like dashboard
         
         # Configure grid weights
         expense_list_frame.columnconfigure(0, weight=1)
-        expense_list_frame.rowconfigure(2, weight=1)  # Table area gets weight
+        expense_list_frame.rowconfigure(3, weight=1)  # Table area gets weight (row 3 now)
         
         # Build header (row 0)
         self._create_header(expense_list_frame)
         
-        # Build metrics section (row 1)
+        # Build metrics section (rows 1-2, title at 1, frame at 2)
         metric_labels = self._create_metrics_section(expense_list_frame)
         
-        # Build table section (row 2)
+        # Build table section (row 3, adjusted for metrics title)
         table_manager = self._create_table_section(expense_list_frame)
         
-        # Build quick add section (row 3)
+        # Build quick add section (row 4, adjusted)
         quick_add_helper = self._create_quick_add_section(expense_list_frame, table_manager)
         
         # Initially hide the expense list page
@@ -79,41 +80,83 @@ class ExpenseListPageBuilder:
         }
     
     def _create_header(self, parent):
-        """Create the header with back button, title, and export/import buttons"""
-        header_frame = ttk.Frame(parent)
-        header_frame.grid(row=0, column=0, pady=(0, 15), sticky=(tk.W, tk.E))
+        """Create the header with back button, title, and export/import buttons - using CustomTkinter"""
+        header_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        header_frame.grid(row=0, column=0, pady=(0, 5), sticky=(tk.W, tk.E))  # Reduced spacing
         header_frame.columnconfigure(1, weight=1)  # Give weight to title
         
-        # Back button (simple arrow icon)
-        back_button = ttk.Button(header_frame, text="←", 
-                               command=self.callbacks['show_main_page'], 
-                               style='Modern.TButton', width=3)
+        # Back button - larger arrow with navy blue color
+        back_button = ctk.CTkButton(
+            header_frame, 
+            text="←", 
+            command=self.callbacks['show_main_page'],
+            width=40,
+            height=30,  # Match other buttons
+            corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
+            font=config.get_font(config.Fonts.SIZE_LARGE),  # Larger font for bigger arrow
+            fg_color=config.Colors.BLUE_DARK_NAVY,  # Dark navy blue
+            hover_color=config.Colors.BLUE_NAVY,  # Lighter navy on hover
+            text_color="white"
+        )
         back_button.grid(row=0, column=0, sticky=tk.W, padx=(0, 15))
         
-        # Title
-        title_label = ttk.Label(header_frame, text="Expense List", style='Title.TLabel')
+        # Title - using CTkLabel
+        title_label = ctk.CTkLabel(
+            header_frame, 
+            text="Expense List", 
+            font=config.Fonts.TITLE,
+            text_color=config.Colors.TEXT_BLACK
+        )
         title_label.grid(row=0, column=1, sticky=(tk.W, tk.E))
         
-        # Button frame (on the right side) - stacks Export and Import buttons
-        button_frame = ttk.Frame(header_frame)
+        # Button frame (on the right side) - stacks Export and Import buttons - using CTkFrame
+        button_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         button_frame.grid(row=0, column=2, sticky=tk.E, padx=(15, 0))
         
-        # Export button
-        export_button = ttk.Button(button_frame, text="📤 Export", 
-                                   command=self.callbacks['export_dialog'],
-                                   width=10)
-        export_button.pack(pady=(0, 5))
+        # Export button - using CTkButton with up arrow and dark navy blue
+        export_button = ctk.CTkButton(
+            button_frame, 
+            text="↑ Export", 
+            command=self.callbacks['export_dialog'],
+            width=100,
+            height=30,  # Compact height like dashboard buttons
+            corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
+            font=config.Fonts.BUTTON,
+            fg_color=config.Colors.BLUE_DARK_NAVY,  # Dark navy blue
+            hover_color=config.Colors.BLUE_NAVY,  # Lighter navy on hover
+            text_color="white"
+        )
+        export_button.pack(pady=(0, 3))  # Reduced spacing
         
-        # Import button (below Export)
-        import_button = ttk.Button(button_frame, text="📥 Import", 
-                                   command=self.callbacks['import_dialog'],
-                                   width=10)
+        # Import button (below Export) - using CTkButton with down arrow and dark navy blue
+        import_button = ctk.CTkButton(
+            button_frame, 
+            text="↓ Import", 
+            command=self.callbacks['import_dialog'],
+            width=100,
+            height=30,  # Compact height like dashboard buttons
+            corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
+            font=config.Fonts.BUTTON,
+            fg_color=config.Colors.BLUE_DARK_NAVY,  # Dark navy blue
+            hover_color=config.Colors.BLUE_NAVY,  # Lighter navy on hover
+            text_color="white"
+        )
         import_button.pack()
     
     def _create_metrics_section(self, parent):
-        """Create the expense metrics section (median, total, largest)"""
-        metrics_frame = ttk.LabelFrame(parent, text="Expense Insights", padding="10")
-        metrics_frame.grid(row=1, column=0, pady=(0, 10), sticky=(tk.W, tk.E))
+        """Create the expense metrics section (median, total, largest) - using CustomTkinter"""
+        # Title label OUTSIDE the frame (like dashboard sections)
+        title_label = ttk.Label(parent, text="Expense Insights", font=config.get_font(config.Fonts.SIZE_SMALL))
+        title_label.grid(row=1, column=0, pady=(0, 0), sticky=tk.W)  # Title above frame
+        
+        # Metrics frame with border
+        metrics_frame = ctk.CTkFrame(
+            parent,
+            fg_color=config.Colors.BG_LIGHT_GRAY,
+            border_width=1,
+            border_color=config.Colors.BG_DARK_GRAY
+        )
+        metrics_frame.grid(row=2, column=0, pady=(0, 6), sticky=(tk.W, tk.E))  # Reduced spacing, row 2 now
         
         # Get initial metrics data
         median_expense, expense_count = ExpenseAnalytics.calculate_median_expense(
@@ -125,10 +168,10 @@ class ExpenseListPageBuilder:
         total_amount = self.expense_tracker.monthly_total
         
         # Three columns: Typical Expense | Total Amount | Largest Expense
-        row = ttk.Frame(metrics_frame)
-        row.pack(fill=tk.X)
+        row = ttk.Frame(metrics_frame)  # Use ttk.Frame for internal layout like dashboard
+        row.pack(fill=tk.X, padx=10, pady=(8, 8))  # Match dashboard padding
         
-        # Typical expense (left)
+        # Typical expense (left) - using ttk.Label for internal consistency
         typical_frame = ttk.Frame(row)
         typical_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
@@ -136,7 +179,8 @@ class ExpenseListPageBuilder:
                  font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), 
                  foreground=config.Colors.TEXT_GRAY_DARK).pack()
         list_median_label = ttk.Label(typical_frame, text=f"${median_expense:.2f}", 
-                                     style='Analytics.TLabel')
+                                     font=config.get_font(config.Fonts.SIZE_NORMAL),
+                                     foreground=config.Colors.TEXT_GRAY_MEDIUM)
         list_median_label.pack()
         median_count_label = ttk.Label(typical_frame, 
                                       text=f"(median of {expense_count} expense{'s' if expense_count != 1 else ''})", 
@@ -144,7 +188,7 @@ class ExpenseListPageBuilder:
                                       foreground=config.Colors.TEXT_GRAY_MEDIUM)
         median_count_label.pack()
         
-        # Total amount (center)
+        # Total amount (center) - using ttk.Label
         total_frame = ttk.Frame(row)
         total_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         
@@ -152,7 +196,7 @@ class ExpenseListPageBuilder:
                  font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), 
                  foreground=config.Colors.GREEN_PRIMARY).pack()
         list_total_label = ttk.Label(total_frame, text=f"${total_amount:.2f}", 
-                                    style='Analytics.TLabel', 
+                                    font=config.get_font(config.Fonts.SIZE_NORMAL),
                                     foreground=config.Colors.GREEN_PRIMARY)
         list_total_label.pack()
         expense_count_total = len(self.expense_tracker.expenses)
@@ -162,7 +206,7 @@ class ExpenseListPageBuilder:
                                      foreground=config.Colors.TEXT_GRAY_MEDIUM)
         total_count_label.pack()
         
-        # Largest expense (right)
+        # Largest expense (right) - using ttk.Label
         largest_frame = ttk.Frame(row)
         largest_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
         
@@ -170,7 +214,8 @@ class ExpenseListPageBuilder:
                  font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'), 
                  foreground=config.Colors.RED_PRIMARY).pack()
         largest_label = ttk.Label(largest_frame, text=f"${largest_expense:.2f}", 
-                                 style='Analytics.TLabel')
+                                 font=config.get_font(config.Fonts.SIZE_NORMAL),
+                                 foreground=config.Colors.TEXT_GRAY_MEDIUM)
         largest_label.pack()
         largest_desc_label = ttk.Label(largest_frame, text=f"({largest_desc})", 
                                       font=config.Fonts.LABEL_SMALL, 
@@ -203,7 +248,8 @@ class ExpenseListPageBuilder:
             
             self.expense_tracker.expenses = [exp.to_dict() for exp in table_expenses]
             
-            # Recalculate monthly total
+            # Recalculate monthly total (but keep all expenses in the list)
+            # Note: monthly_total here includes all expenses, but display calculations will exclude future ones
             self.expense_tracker.monthly_total = sum(exp['amount'] for exp in self.expense_tracker.expenses)
             
             # Save the updated data to disk
@@ -228,9 +274,10 @@ class ExpenseListPageBuilder:
             # Update tray icon tooltip with new total
             self.expense_tracker.tray_icon_manager.update_tooltip()
         
-        # Create a frame for the table at row=2 (row=1 is metrics, row=3 is quick add at bottom)
-        table_container = ttk.Frame(parent)
-        table_container.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        # Create a frame for the table at row=3 - using CTkFrame
+        # Note: Table itself uses ttk.Treeview which can't be migrated, but container can be CTkFrame
+        table_container = ctk.CTkFrame(parent, fg_color="transparent")
+        table_container.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 5))  # Reduced spacing
         table_container.columnconfigure(0, weight=1)
         table_container.rowconfigure(0, weight=1)
         
@@ -246,6 +293,9 @@ class ExpenseListPageBuilder:
         """Create the quick add section at the bottom"""
         from quick_add_helper import QuickAddHelper
         
+        # Get description_history from expense_tracker if available
+        description_history = getattr(self.expense_tracker, 'description_history', None)
+        
         quick_add_helper = QuickAddHelper(
             parent_widget=parent,
             expense_tracker=self.expense_tracker,
@@ -255,10 +305,11 @@ class ExpenseListPageBuilder:
             table_manager=table_manager,
             update_metrics_callback=self.callbacks['update_expense_metrics'],
             count_tracker=self._previous_expense_count,
-            gui_instance=self.callbacks['gui_instance']
+            gui_instance=self.callbacks['gui_instance'],
+            description_history=description_history
         )
         quick_add_frame = quick_add_helper.create_ui()
-        quick_add_frame.grid(row=3, column=0, pady=(10, 0), sticky=(tk.W, tk.E))
+        quick_add_frame.grid(row=4, column=0, pady=(5, 0), sticky=(tk.W, tk.E))  # Reduced spacing
         
         # Store reference for later use (e.g., archive mode)
         return quick_add_helper
