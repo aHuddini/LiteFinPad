@@ -3,11 +3,12 @@
 ## 🚀 Version 3.6.1 - Dark Mode (Experimental) - November 9, 2025
 
 ### **Summary**
-v3.6.1 introduces **Dark Mode (Experimental)** - a modern dark theme for reduced eye strain with full theme awareness across all UI components. This version also includes comprehensive documentation updates for the `settings.ini` configuration file, making it easier for users to customize the application.
+v3.6.1 introduces **Dark Mode (Experimental)** - a modern dark theme for reduced eye strain with full theme awareness across all UI components. This version also includes comprehensive documentation updates for the `settings.ini` configuration file, making it easier for users to customize the application. Additionally, extensive code documentation simplification was completed to improve maintainability and code readability.
 
 **Development Status:**
 - 🌙 Dark Mode Feature Complete (November 9, 2025)
 - 📚 Settings documentation added
+- 🧹 Code documentation simplification completed (November 10, 2025)
 - 📦 Built on stable v3.6 foundation
 
 ---
@@ -43,6 +44,22 @@ v3.6.1 introduces **Dark Mode (Experimental)** - a modern dark theme for reduced
     - Export Settings
     - Logging Settings
     - AutoComplete Settings (Advanced)
+
+---
+
+### 🔧 **Code Quality Improvements**
+
+#### **Code Documentation Simplification** 🧹 NEW (November 10, 2025)
+- **Improved**: Extensive cleanup of code documentation for better maintainability
+  - Reduced docstring lines by 50% (from ~1,500 to 762 lines)
+  - Reduced comment lines by 50% (from 1,546 to 771 lines)
+  - Removed verbose explanations, PoC references, and development history
+  - Maintained 100% documentation coverage with essential information only
+  - Removed redundant action-verb comments (`# Create...`, `# Add...`, `# Configure...`)
+  - Preserved essential "why" comments explaining design decisions
+  - Simplified 20+ files across all project modules
+  - **Impact**: Cleaner, more professional codebase that's easier to read and maintain
+  - **Note**: AI tools (like Cursor) tend to add excessive comments - guidelines established to prevent future verbosity
 
 ---
 
