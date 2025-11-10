@@ -17,10 +17,11 @@
 
 ## INTRODUCTION
 
-Hello World! I'm a beginner to software development and dabbling in the AI-enhanced tech world on the side when I have time to take breaks from my full-time career. 
+Hello World! I'm a beginner to software development and dabbling in the AI-enhanced tech world when I have time to take breaks from my full-time career. 
 
-This is my first personal "microapp" project coded with the help of Cursor AI (using Claude Sonnet 4 as my primary model of choice). 
-I built it for my own personal use to solve a need to quickly keep track of large, monthly expenses (without trying to manage finances on my phone). While it wasn't a one-shot app, I've been learning a lot about software development and how hard it actually is to build software (despite having powerful AI tools to assist me)... I don't know how developers did it before AI tools were a thing. 
+This is my first "microapp" project coded with the help of Cursor AI (using Claude Sonnet 4 as my primary model of choice). The development framework is a combination of Python (business logic), Tkinter (GUI) & CustomTkinter (GUI).
+
+Inspired to think more seriously about my spending habits from watching Caleb Hammer's Financial Audit YouTube series, I built it for my own personal use to solve a need to quickly keep track of large, monthly expenses (without trying to manage finances on my phone). While it wasn't a one-shot app, I've been learning a lot about software development and how hard it actually is to build software (despite having powerful AI tools to assist me)... I don't know how developers did it before AI tools were a thing. 
 
 I don't know if it will work for everyone else's machines, but I felt my project was stable enough for daily use to release and open source it out for the public.
 
@@ -426,6 +427,13 @@ Built with the help of:
 - **Issues**: [GitHub Issues](../../issues)
 - **Documentation**: See `/docs` folder for detailed guides
 - **Build Help**: [BUILD_SYSTEM_GUIDE.md](docs/user/BUILD_SYSTEM_GUIDE.md)
+
+## ⚠️ DISCLAIMER
+
+- **This is a personal project** built by a beginner developer with AI assistance
+- **Windows-only** - designed for Windows 10+
+- **No automated testing** - tested manually for daily use
+- **Use at your own risk** - backup your data regularly
 
 ## Future Plans
 
