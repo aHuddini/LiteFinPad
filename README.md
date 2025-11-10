@@ -428,6 +428,13 @@ Built with the help of:
 - **Documentation**: See `/docs` folder for detailed guides
 - **Build Help**: [BUILD_SYSTEM_GUIDE.md](docs/user/BUILD_SYSTEM_GUIDE.md)
 
+## ⚠️ DISCLAIMER
+
+- **This is a personal project** built by a beginner developer with AI assistance
+- **Windows-only** - designed for Windows 10+
+- **No automated testing** - tested manually for daily use
+- **Use at your own risk** - backup your data regularly
+
 ## Future Plans
 
 Potential features under consideration (not committed):
