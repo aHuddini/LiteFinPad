@@ -38,7 +38,7 @@ Write-Host "      Found: $buildName" -ForegroundColor Green
 Write-Host "      Path: $buildPath" -ForegroundColor Gray
 
 # Step 2: Verify _internal folder exists
-Write-Host "`n[2/5] Verifying build integrity..." -ForegroundColor Yellow
+Write-Host "`n[2/4] Verifying build integrity..." -ForegroundColor Yellow
 
 $internalPath = Join-Path $buildPath "_internal"
 if (-not (Test-Path $internalPath)) {
@@ -65,28 +65,8 @@ if ($hasData -or $hasLogs -or $hasSettings) {
     Write-Host "      Cleaned successfully" -ForegroundColor Green
 }
 
-# Optional: Add documentation files if they exist in project root
-Write-Host "`n      Checking for optional documentation files..." -ForegroundColor Gray
-$docFiles = @("README.md", "LICENSE")
-$docsAdded = 0
-
-foreach ($docFile in $docFiles) {
-    $sourcePath = Join-Path (Get-Location) $docFile
-    $destPath = Join-Path $buildPath $docFile
-    
-    if (Test-Path $sourcePath) {
-        Copy-Item -Path $sourcePath -Destination $destPath -Force | Out-Null
-        Write-Host "      Added: $docFile" -ForegroundColor Gray
-        $docsAdded++
-    }
-}
-
-if ($docsAdded -gt 0) {
-    Write-Host "      Added $docsAdded documentation file(s) to release" -ForegroundColor Green
-}
-
 # Step 3: Ensure _internal is NOT hidden for zipping
-Write-Host "`n[3/6] Preparing folders for compression..." -ForegroundColor Yellow
+Write-Host "`n[3/4] Preparing folders for compression..." -ForegroundColor Yellow
 
 $internalAttribs = (Get-Item $internalPath -Force).Attributes
 if ($internalAttribs -band [System.IO.FileAttributes]::Hidden) {
@@ -95,7 +75,7 @@ if ($internalAttribs -band [System.IO.FileAttributes]::Hidden) {
 }
 
 # Step 4: Create the ZIP file
-Write-Host "`n[4/6] Creating release ZIP..." -ForegroundColor Yellow
+Write-Host "`n[4/4] Creating release ZIP..." -ForegroundColor Yellow
 
 # Kill any running instances
 taskkill /F /IM "$buildName.exe" 2>$null | Out-Null
@@ -119,8 +99,8 @@ try {
     # Create ZIP from folder contents
     [System.IO.Compression.ZipFile]::CreateFromDirectory($buildPath, $zipPath, 'Optimal', $false)
     
-    # Step 5: Set hidden attribute on _internal folder INSIDE the ZIP
-    Write-Host "`n[5/6] Setting hidden attribute for _internal in ZIP..." -ForegroundColor Yellow
+    # Set hidden attribute on _internal folder INSIDE the ZIP
+    Write-Host "`n      Setting hidden attribute for _internal in ZIP..." -ForegroundColor Yellow
     
     # Open the ZIP for modification
     $zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Update')
@@ -150,8 +130,8 @@ if ($internalAttribs -band [System.IO.FileAttributes]::Hidden) {
     attrib +h $internalPath
 }
 
-# Step 6: Verify and report
-Write-Host "`n[6/6] Finalizing release package..." -ForegroundColor Yellow
+# Final: Verify and report
+Write-Host "`nFinalizing release package..." -ForegroundColor Yellow
 Write-Host "`n============================================" -ForegroundColor Cyan
 Write-Host "  Release Package Created Successfully!" -ForegroundColor Green
 Write-Host "============================================`n" -ForegroundColor Cyan

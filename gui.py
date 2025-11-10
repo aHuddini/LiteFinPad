@@ -326,7 +326,7 @@ class LiteFinPadGUI:
         
         # Features - compact format
         features_text = ("✓ 100% offline (no internet required)\n"
-                        "✓ Lightweight and fast\n"
+                 "✓ Lightweight and fast\n"
                         "✓ Export to Excel and PDF")
         add_label(features_text, 
                  config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_DARK,

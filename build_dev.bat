@@ -233,6 +233,52 @@ if exist "data_2025-10" (
 
 REM NOTE: error_logger.py is auto-compiled by PyInstaller into _internal/
 REM No need to copy separately - it's available through import statements
+
+REM Copy README.txt for distribution (REQUIRED for all builds)
+if not exist "README.txt" (
+    echo [CRITICAL ERROR] README.txt file not found!
+    echo [REQUIRED] README.txt file must exist in project root for distribution
+    pause
+    exit /b 1
+)
+copy "README.txt" "dist\LiteFinPad_v%CURRENT_VERSION%\README.txt" >NUL 2>&1
+if errorlevel 1 (
+    echo [CRITICAL ERROR] Failed to copy README.txt file!
+    pause
+    exit /b 1
+)
+echo [SUCCESS] README.txt copied
+
+REM Copy license files for distribution (REQUIRED for all builds)
+if not exist "LICENSE" (
+    echo [CRITICAL ERROR] LICENSE file not found!
+    echo [REQUIRED] LICENSE file must exist in project root for distribution
+    pause
+    exit /b 1
+)
+copy "LICENSE" "dist\LiteFinPad_v%CURRENT_VERSION%\LICENSE" >NUL 2>&1
+if errorlevel 1 (
+    echo [CRITICAL ERROR] Failed to copy LICENSE file!
+    pause
+    exit /b 1
+)
+echo [SUCCESS] LICENSE copied
+
+if not exist "docs\developer\THIRD_PARTY_LICENSES.txt" (
+    echo [CRITICAL ERROR] THIRD_PARTY_LICENSES.txt not found!
+    echo [REQUIRED] THIRD_PARTY_LICENSES.txt must exist in docs\developer\ for distribution
+    echo [INFO] Expected location: docs\developer\THIRD_PARTY_LICENSES.txt
+    pause
+    exit /b 1
+)
+copy "docs\developer\THIRD_PARTY_LICENSES.txt" "dist\LiteFinPad_v%CURRENT_VERSION%\THIRD_PARTY_LICENSES.txt" >NUL 2>&1
+if errorlevel 1 (
+    echo [CRITICAL ERROR] Failed to copy THIRD_PARTY_LICENSES.txt!
+    pause
+    exit /b 1
+)
+echo [SUCCESS] THIRD_PARTY_LICENSES.txt copied
+
 echo.
 
 REM ============================================================

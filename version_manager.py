@@ -8,6 +8,7 @@ from typing import Tuple, Optional
 
 VERSION_FILE = "version.txt"
 BACKUP_VERSION_FILE = "version.txt.backup"
+README_FILE = "README.txt"
 
 
 def read_version() -> str:
@@ -28,8 +29,38 @@ def read_version() -> str:
         return "3.0"
 
 
+def update_readme_version(version: str) -> bool:
+    """Update version number in README.txt file"""
+    if not os.path.exists(README_FILE):
+        # README.txt doesn't exist, skip update
+        return True
+    
+    try:
+        with open(README_FILE, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Update version line (matches "Version: X.Y.Z" or "Version: X.Y")
+        # Pattern matches: Version: followed by version number
+        pattern = r'(Version:\s*)(\d+\.\d+(?:\.\d+)?)'
+        replacement = r'\1' + version
+        
+        updated_content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+        
+        if updated_content != content:
+            with open(README_FILE, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            return True
+        else:
+            # Version not found or already correct
+            return True
+    except Exception as e:
+        print(f"[WARNING] Failed to update README.txt version: {e}")
+        # Don't fail the build if README update fails
+        return True
+
+
 def write_version(version: str) -> bool:
-    """Write version to version.txt with backup"""
+    """Write version to version.txt with backup and update README.txt"""
     try:
         # Create backup if file exists
         if os.path.exists(VERSION_FILE):
@@ -41,6 +72,9 @@ def write_version(version: str) -> bool:
         # Write new version
         with open(VERSION_FILE, 'w', encoding='utf-8') as f:
             f.write(version)
+        
+        # Update README.txt version
+        update_readme_version(version)
         
         return True
     except Exception as e:

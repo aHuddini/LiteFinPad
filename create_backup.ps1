@@ -2,7 +2,7 @@
 # BACKUP CONFIGURATION - Update these values for each backup
 # ============================================================
 $backupVersion = "v3.6.1"
-$backupDescription = "dark_mode_syntax_fixes_and_version_update"  # Update this for each backup
+$backupDescription = "build_scripts_license_files_and_indentation_fixes"  # Update this for each backup
 # ============================================================
 
 $timestamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
@@ -31,17 +31,28 @@ $info = @'
 
 ## What Changed
 
-### Dark Mode Implementation Complete
-- Full dark mode theme support across all UI components
-- ThemeManager integration for centralized theme management
-- Settings.ini documentation added to README
-- All dialogs, tables, and UI elements are theme-aware
-- Dark mode works seamlessly with Archive Mode
+### Build System Improvements (November 2025)
+- **License Files Integration**: All build scripts now require and copy license files
+  - LICENSE file (MIT License) - required in all builds
+  - THIRD_PARTY_LICENSES.txt - required in all builds (created from .md source)
+  - README.txt - required in all builds (user guide with how-to sections)
+  - Builds fail if license files are missing (no silent warnings)
+- **ZIP Script Enhancement**: create_release_zip.ps1 now verifies license files
+  - Checks for LICENSE, THIRD_PARTY_LICENSES.txt, and README.txt
+  - Falls back to copying from project root if missing from build folder
+  - Aborts ZIP creation if required files are missing
+- **Version Manager Extension**: version_manager.py now auto-updates README.txt
+  - Automatically updates version number in README.txt when version increments
+  - Pattern matching finds "Version: X.Y.Z" and replaces it
+  - No separate script needed - integrated into version management
 
-### Syntax Fixes
-- Fixed all indentation errors in archive_mode_manager.py
-- Corrected try/except block formatting
-- Resolved all linter errors
+### Code Quality Fixes
+- **Indentation Errors Fixed**: Resolved all 74 linter errors
+  - Fixed 39 indentation errors in archive_mode_manager.py
+  - Fixed 35 indentation errors in gui.py
+  - All try/except blocks now properly indented
+  - All else blocks properly indented
+  - Code now passes all linter checks (0 errors remaining)
 
 ### Version Update
 - Updated project to v3.6.1
