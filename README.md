@@ -19,7 +19,8 @@
 
 Hello World! I'm a beginner to software development and dabbling in the AI-enhanced tech world when I have time to take breaks from my full-time career. 
 
-This is my first personal "microapp" project coded with the help of Cursor AI (using Claude Sonnet 4 as my primary model of choice). 
+This is my first "microapp" project coded with the help of Cursor AI (using Claude Sonnet 4 as my primary model of choice). The development framework is a combination of Python (business logic), Tkinter (GUI) & CustomTkinter (GUI).
+
 I built it for my own personal use to solve a need to quickly keep track of large, monthly expenses (without trying to manage finances on my phone). While it wasn't a one-shot app, I've been learning a lot about software development and how hard it actually is to build software (despite having powerful AI tools to assist me)... I don't know how developers did it before AI tools were a thing. 
 
 I don't know if it will work for everyone else's machines, but I felt my project was stable enough for daily use to release and open source it out for the public.
