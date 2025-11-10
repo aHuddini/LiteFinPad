@@ -33,6 +33,7 @@ data_*/
 !requirements.txt
 description_history.json
 LiteFinPad_Backup_*.json
+settings.ini
 
 # ====================
 # Logs and Errors
@@ -86,6 +87,7 @@ $RECYCLE.BIN/
 archive_old_docs/
 archive_old_specs/
 archive_backups/
+archive_old_animation/
 
 # ====================
 # Personal Learning & Development Notes
@@ -106,11 +108,21 @@ DOCUMENTATION_IMPROVEMENTS_SUMMARY.md
 # ====================
 _branding/
 
+# ====================
+# Proof of Concept Files
+# ====================
+poc_*.py
+PoC_*.py
+
 # Note: BEGINNER_THOUGHTS.md is intentionally PUBLIC
 # It's kept in the main folder to share the development journey
 
-LiteFinPad_v3.5.2-Windows-x64.zip
-create_backup.ps1
+# ====================
+# Release ZIP Files
+# ====================
+*.zip
+
+# ====================
+# Internal Analysis Files
+# ====================
 _analysis_changelog_gaps.md
-create_release_zip.ps1
-RELEASE_NOTES_v3.6.md

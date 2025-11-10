@@ -791,7 +791,7 @@ AI attempted to use `disabledbackground` and `disabledforeground` on `ttk.Entry`
 - "I'm not certain if `ttk.Entry` supports the same styling options as `tk.Entry`. Let me use the simple `state='disabled'` approach I'm confident will work."
 - Would have saved hours of frustration
 
-**For Fellow Beginners:**
+**For Fellow Beginners:**  
 When working with AI:
 - **Ask AI to disclose uncertainties** upfront in implementation plans
 - **Request simpler approaches** when AI seems uncertain

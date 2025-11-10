@@ -102,7 +102,7 @@ class ExpenseTracker:
         self.root.attributes('-toolwindow', True)
         
         # Anti-flicker optimizations
-        self.root.configure(bg='white')  # Set consistent background
+        # Note: Background color will be set by GUI setup_window() with theme-aware colors
         self.root.attributes('-alpha', 1.0)  # Ensure full opacity initially
         
         # Configure window close behavior - X button should quit the app
@@ -420,7 +420,9 @@ class ExpenseTracker:
             if message:
                 messagebox.showinfo("Cross-Month Save", message)
         
-        dialog = ExpenseAddDialog(self.root, on_add_expense, self.description_history)
+        # Get theme_manager from gui if available
+        theme_manager = getattr(self.gui, 'theme_manager', None) if hasattr(self, 'gui') else None
+        dialog = ExpenseAddDialog(self.root, on_add_expense, self.description_history, theme_manager=theme_manager)
         self.open_dialogs.append(dialog)  # Track the dialog
         
         # Set up cleanup when dialog is destroyed
@@ -461,12 +463,17 @@ class ExpenseTracker:
             import tkinter as tk
             from tkinter import ttk, messagebox
             
+            # Get theme_manager from gui if available
+            theme_manager = getattr(self.gui, 'theme_manager', None) if hasattr(self, 'gui') else None
+            colors = theme_manager.get_colors() if theme_manager else config.Colors
+            
             # Create dialog using DialogHelper (no transient for tray icon independence)
             dialog = DialogHelper.create_dialog_no_transient(
                 self.root,
                 "Quick Add Expense",
                 config.Dialog.ADD_EXPENSE_WIDTH,
-                config.Dialog.ADD_EXPENSE_WITH_NUMPAD_HEIGHT
+                config.Dialog.ADD_EXPENSE_WITH_NUMPAD_HEIGHT,
+                colors=colors
             )
             
             # Position dialog using DialogHelper
@@ -483,44 +490,87 @@ class ExpenseTracker:
                 dialog_height=config.Dialog.ADD_EXPENSE_WITH_NUMPAD_HEIGHT
             )
             
-            # Content frame
-            content_frame = ttk.Frame(dialog, padding="15")
+            # Get theme-aware colors for dialog labels
+            is_dark = theme_manager.is_dark_mode() if theme_manager else False
+            dialog_bg = colors.BG_SECONDARY if is_dark else colors.BG_LIGHT_GRAY
+            text_color = colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+            
+            # Ensure dialog background matches application
+            dialog.configure(bg=dialog_bg)
+            
+            # Configure ttk.Style for Quick Add dialog frame
+            quick_add_frame_style = ttk.Style()
+            quick_add_frame_style.configure('QuickAdd.TFrame', background=dialog_bg)
+            
+            # Content frame (use specific style to match application background)
+            content_frame = ttk.Frame(dialog, padding="15", style='QuickAdd.TFrame')
             content_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Configure ttk.Style for Quick Add dialog labels (increase font by 1px: SIZE_SMALL 10 -> 11)
+            quick_add_style = ttk.Style()
+            quick_add_style.configure('QuickAdd.TLabel', 
+                                    font=config.get_font(11),  # SIZE_SMALL (10) + 1 = 11
+                                    foreground=text_color,
+                                    background=dialog_bg)
+            quick_add_style.configure('QuickAdd.Header.TLabel', 
+                                    font=config.get_font(config.Fonts.SIZE_XLARGE, 'bold'),  # HEADER size
+                                    foreground=text_color,
+                                    background=dialog_bg)
+            
+            # Configure ttk.Style for Quick Add system tray dialog entry fields (slightly lighter gray, matching Quick Add inline)
+            entry_bg = colors.BG_MEDIUM_GRAY if is_dark else colors.BG_WHITE
+            entry_fg = text_color  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+            quick_add_style.configure('QuickAdd.TEntry',
+                                     fieldbackground=entry_bg,
+                                     foreground=entry_fg,
+                                     borderwidth=1,
+                                     relief='solid')
+            # Also configure style for Combobox (used by AutoCompleteEntry)
+            quick_add_style.configure('QuickAdd.TCombobox',
+                                     fieldbackground=entry_bg,
+                                     foreground=entry_fg,
+                                     borderwidth=1)
             
             # Title
             title_label = ttk.Label(
                 content_frame,
                 text="Quick Add Expense",
-                font=config.Fonts.HEADER
+                style='QuickAdd.Header.TLabel'
             )
             title_label.pack(pady=(0, 15))
             
             # Current month and total info
             current_month = datetime.now().strftime("%B %Y")
-            info_frame = ttk.Frame(content_frame)
+            info_frame = ttk.Frame(content_frame, style='QuickAdd.TFrame')
             info_frame.pack(fill=tk.X, pady=(0, 20))
             
             month_label = ttk.Label(
                 info_frame,
                 text=current_month,
-                font=config.Fonts.LABEL,
-                foreground=config.Colors.TEXT_BLACK
+                style='QuickAdd.TLabel'
             )
             month_label.pack(anchor=tk.CENTER)
+            
+            # Configure style for total label to match dialog background
+            quick_add_style.configure('QuickAdd.Total.TLabel',
+                                    font=config.get_font(config.Fonts.SIZE_SMALL + 1, 'bold'),
+                                    foreground=colors.GREEN_PRIMARY,
+                                    background=dialog_bg)
             
             total_label = ttk.Label(
                 info_frame,
                 text=f"Current Total: ${self.monthly_total:.2f}",
-                font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'),
-                foreground=config.Colors.GREEN_PRIMARY
+                style='QuickAdd.Total.TLabel'
             )
             total_label.pack(anchor=tk.CENTER, pady=(5, 0))
             
-            # Amount field
-            amount_frame = ttk.Frame(content_frame)
+            # Amount field - use QuickAdd.TFrame style for consistent background
+            amount_frame = ttk.Frame(content_frame, style='QuickAdd.TFrame')
             amount_frame.pack(fill=tk.X, pady=(0, 10))
             
-            amount_label = ttk.Label(amount_frame, text="Amount ($):")
+            amount_label = ttk.Label(amount_frame, 
+                                    text="Amount ($):",
+                                    style='QuickAdd.TLabel')
             amount_label.pack(anchor=tk.W)
             
             amount_var = tk.StringVar()
@@ -529,19 +579,31 @@ class ExpenseTracker:
             vcmd = (dialog.register(InputValidation.validate_amount), '%P')
             
             amount_entry = ttk.Entry(amount_frame, textvariable=amount_var, font=config.Fonts.LABEL,
-                                    validate='key', validatecommand=vcmd)
+                                    validate='key', validatecommand=vcmd,
+                                    style='QuickAdd.TEntry')  # Apply theme-aware styling
             amount_entry.pack(fill=tk.X, pady=(5, 0))
             amount_entry.focus_set()
             
-            # Number pad widget
-            number_pad = NumberPadWidget(content_frame, amount_var)
+            # Configure style for numpad LabelFrame to match dialog background
+            numpad_style = ttk.Style()
+            numpad_style.configure('NumPad.TLabelframe', 
+                                   background=dialog_bg,
+                                   bordercolor=colors.BG_DARK_GRAY,
+                                   borderwidth=0)
+            numpad_style.configure('NumPad.TLabelframe.Label', 
+                                   background=dialog_bg)
+            
+            # Number pad widget - apply theme-aware style
+            number_pad = NumberPadWidget(content_frame, amount_var, style='NumPad.TLabelframe')
             number_pad.pack(fill=tk.X, pady=(0, 10))
             
-            # Description field
-            desc_frame = ttk.Frame(content_frame)
+            # Description field - use QuickAdd.TFrame style for consistent background
+            desc_frame = ttk.Frame(content_frame, style='QuickAdd.TFrame')
             desc_frame.pack(fill=tk.X, pady=(0, 20))
             
-            desc_label = ttk.Label(desc_frame, text="Description:")
+            desc_label = ttk.Label(desc_frame, 
+                                  text="Description:",
+                                  style='QuickAdd.TLabel')
             desc_label.pack(anchor=tk.W)
             
             # Auto-complete entry for description
@@ -557,13 +619,14 @@ class ExpenseTracker:
                 get_suggestions_callback=get_suggestions,
                 show_on_focus=self.description_history.should_show_on_focus(),
                 min_chars=self.description_history.get_min_chars(),
-                font=config.Fonts.LABEL
+                font=config.Fonts.LABEL,
+                style='QuickAdd.TCombobox'  # Apply theme-aware styling
             )
             desc_entry.pack(fill=tk.X, pady=(5, 0))
             
-            # Buttons frame
-            button_frame = ttk.Frame(content_frame)
-            button_frame.pack(fill=tk.X)
+            # Buttons frame - use QuickAdd.TFrame style for consistent background
+            button_frame = ttk.Frame(content_frame, style='QuickAdd.TFrame')
+            button_frame.pack(fill=tk.X, pady=(0, 0))  # No extra padding to prevent cropping
             
             # Flag to prevent auto-close when showing validation errors
             dialog._showing_messagebox = False
@@ -637,7 +700,7 @@ class ExpenseTracker:
                 text="Add",
                 command=on_add
             )
-            add_button.pack(side=tk.LEFT, padx=(0, 10))
+            add_button.pack(side=tk.LEFT, padx=(0, 5))  # Reduced padding from 10 to 5
             
             # Cancel button
             cancel_button = ttk.Button(
@@ -645,7 +708,7 @@ class ExpenseTracker:
                 text="Cancel",
                 command=on_cancel
             )
-            cancel_button.pack(side=tk.LEFT)
+            cancel_button.pack(side=tk.LEFT, padx=(0, 0))  # No padding
             
             # Bind Enter key for sequential field navigation
             def handle_amount_enter(event):
@@ -766,10 +829,12 @@ class ExpenseTracker:
     def export_expenses_dialog(self):
         """Show export dialog for exporting expenses to Excel or PDF"""
         try:
+            # Get theme_manager from gui if available
+            theme_manager = getattr(self.gui, 'theme_manager', None) if hasattr(self, 'gui') else None
             # Use the new export system with dialog and status bar callback
             # Note: status_manager is guaranteed to exist after GUI initialization
             status_callback = self.gui.status_manager.show
-            export_expenses(self.expenses, self.current_month, status_callback)
+            export_expenses(self.expenses, self.current_month, status_callback, theme_manager=theme_manager)
         except Exception as e:
             log_error("Error opening export dialog", e)
             messagebox.showerror("Export Error", f"Failed to open export dialog: {e}")

@@ -29,7 +29,7 @@ from settings_manager import get_settings_manager
 class DataExporterV2:
     """Optimized data exporter with smaller library footprint"""
     
-    def __init__(self, expenses: List[Dict], current_month: str, status_callback=None):
+    def __init__(self, expenses: List[Dict], current_month: str, status_callback=None, theme_manager=None):
         """
         Initialize the exporter with expense data
         
@@ -37,11 +37,13 @@ class DataExporterV2:
             expenses: List of expense dictionaries
             current_month: Current month string (YYYY-MM format)
             status_callback: Optional callback function for status updates (icon, message)
+            theme_manager: Optional ThemeManager for theme-aware colors
         """
         self.expenses = expenses
         self.current_month = current_month
         self.month_name = datetime.strptime(current_month, "%Y-%m").strftime("%B %Y")
         self.status_callback = status_callback
+        self.theme_manager = theme_manager
         self.export_location = self._load_export_location()
     
     def generate_data_checksum(self, data: Dict) -> str:
@@ -587,20 +589,24 @@ class DataExporterV2:
             )
             return False
     
-    def show_export_dialog(self):
+    def show_export_dialog(self, theme_manager=None):
         """Show enhanced dialog for selecting export format with default save location"""
         import tkinter as tk
         from tkinter import ttk, filedialog
         
+        # Get theme-aware colors
+        colors = theme_manager.get_colors() if theme_manager else config.Colors
+        
         # Get main window reference
         main_window = tk._default_root
         
-        # Create dialog using DialogHelper
+        # Create dialog using DialogHelper with theme-aware colors
         dialog = DialogHelper.create_dialog(
             main_window,
             "Export Expenses",
             config.Dialog.EXPORT_WIDTH,
-            config.Dialog.EXPORT_HEIGHT
+            config.Dialog.EXPORT_HEIGHT,
+            colors=colors
         )
         
         # Create main content frame with reduced padding
@@ -731,7 +737,7 @@ class DataExporterV2:
         DialogHelper.show_dialog(dialog)
 
 
-def export_expenses(expenses: List[Dict], current_month: str, status_callback=None):
+def export_expenses(expenses: List[Dict], current_month: str, status_callback=None, theme_manager=None):
     """
     Convenience function to show export dialog
     
@@ -739,6 +745,7 @@ def export_expenses(expenses: List[Dict], current_month: str, status_callback=No
         expenses: List of expense dictionaries
         current_month: Current month string (YYYY-MM format)
         status_callback: Optional callback function for status updates (message, icon)
+        theme_manager: Optional ThemeManager for theme-aware colors
     """
-    exporter = DataExporterV2(expenses, current_month, status_callback)
-    exporter.show_export_dialog()
+    exporter = DataExporterV2(expenses, current_month, status_callback, theme_manager=theme_manager)
+    exporter.show_export_dialog(theme_manager=theme_manager)

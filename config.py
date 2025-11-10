@@ -30,7 +30,7 @@ class Dialog:
     # Add Expense Dialog (with number pad)
     ADD_EXPENSE_WIDTH = 400
     ADD_EXPENSE_HEIGHT = 670
-    ADD_EXPENSE_WITH_NUMPAD_HEIGHT = 725  # Quick Add variant
+    ADD_EXPENSE_WITH_NUMPAD_HEIGHT = 750  # Quick Add variant (increased to prevent button cropping)
     
     # Edit Expense Dialog
     EDIT_EXPENSE_WIDTH = 350
@@ -38,7 +38,7 @@ class Dialog:
     
     # About Dialog
     ABOUT_WIDTH = 450
-    ABOUT_HEIGHT = 480
+    ABOUT_HEIGHT = 600  # Increased height to accommodate all content
     
     # Budget Dialog
     BUDGET_WIDTH = 400
@@ -121,6 +121,77 @@ class Colors:
     # === Button States ===
     BUTTON_ACTIVE_BG = '#e0e0e0'
     BUTTON_PRESSED_BG = '#d0d0d0'
+
+
+class DarkModeColors:
+    """Dark mode color palette (experimental feature)"""
+    
+    # === Backgrounds ===
+    BG_WHITE = '#1e1e1e'          # Main window background (very dark gray)
+    BG_MAIN = '#1e1e1e'           # Main window background (alias)
+    BG_SECONDARY = '#252526'      # Secondary panels, frames
+    BG_TERTIARY = '#2d2d30'       # Input fields, buttons
+    BG_LIGHT_GRAY = '#2d2d30'     # Frame backgrounds (replaces #e5e5e5)
+    BG_MEDIUM_GRAY = '#3f3f46'    # Medium gray backgrounds
+    BG_DARK_GRAY = '#3f3f46'      # Borders (replaces #d0d0d0)
+    BG_BUTTON_DISABLED = '#3f3f46'  # Gray when button is ON/disabled
+    BG_DIALOG = '#2d2d30'         # Dialog backgrounds
+    BG_TOTAL_ROW = '#3f3f46'      # Export Excel total row
+    BG_ARCHIVE_TINT = '#3d2d4d'   # Dark purple-lavender tint for archive mode (dark mode)
+    BG_TABLE = '#2a2d3a'          # Expense table background (grayish navy blue in dark mode)
+    
+    # === Date Field (Dark Blue) ===
+    DATE_BG = '#2E5C8A'           # Same as light mode (dark blue)
+    DATE_FG = 'white'             # Same as light mode
+    
+    # === Text Colors ===
+    TEXT_PRIMARY = '#cccccc'       # Primary text (light gray) - matches PoC
+    TEXT_BLACK = '#cccccc'         # Primary text (alias for TEXT_PRIMARY for compatibility)
+    TEXT_SECONDARY = '#a0a0a0'     # Secondary text (medium gray) - matches PoC
+    TEXT_GRAY_DARK = '#a0a0a0'    # Secondary text (alias for TEXT_SECONDARY)
+    TEXT_TERTIARY = '#808080'      # Tertiary text (darker gray) - matches PoC
+    TEXT_GRAY_MEDIUM = '#808080'  # Tertiary text (alias for TEXT_TERTIARY)
+    TEXT_GRAY_LIGHT = '#666666'   # Future expenses (lighter gray)
+    TEXT_BROWN = '#d4a574'        # Recent expenses (lighter brown)
+    
+    # === Accent Colors ===
+    # Success/Green
+    GREEN_PRIMARY = '#00cc66'      # Total amount - darker green
+    GREEN_BUTTON = '#107c10'       # Add Expense button - keep same as light mode
+    GREEN_HOVER = '#00b359'        # Hover state (slightly darker)
+    GREEN_PRESSED = '#00994d'      # Pressed state (darker)
+    
+    # Info/Blue
+    BLUE_PRIMARY = '#4fc3f7'      # Headers, links (bright blue)
+    BLUE_LINK = '#4fc3f7'        # Clickable links (bright blue)
+    BLUE_NAVY = '#5eb3f5'        # Day/Week progress labels (bright navy)
+    BLUE_NAVY_DARK = '#4da3e5'    # Day/Week progress labels (darker variant)
+    BLUE_DARK_NAVY = '#1E3A8A'   # Expense List button - keep same as light mode
+    BLUE_BUDGET = '#3E6AAA'       # vs. Budget - lighter blue
+    BLUE_SELECTED = '#4fc3f7'     # Treeview selection (bright blue)
+    
+    # Warning/Red
+    RED_PRIMARY = '#f48771'       # Daily average, largest expense (coral-red)
+    RED_INCREASE = '#ff6b5a'      # Previous month increased spending indicator (brighter red)
+    
+    # Alert/Orange
+    ORANGE_PRIMARY = '#ffa726'    # Weekly pace (bright orange)
+    ORANGE_DARK = '#ff9800'       # Weekly pace label (bright orange)
+    
+    # Archive/Purple
+    PURPLE_ARCHIVE = '#9c7bb8'    # Archive mode accent color (bright purple)
+    
+    # Trend/Purple
+    PURPLE_PRIMARY = '#9c7bb8'    # Previous month, trend analysis (bright purple)
+    PURPLE_VIBRANT = '#ba68c8'    # Previous month label (bright purple)
+    
+    # Averages (non-primary colors)
+    TEAL_DARK = '#4dd0e1'         # Daily Average label (bright cyan)
+    AMBER_DARK = '#ffb74d'        # Weekly Average label (bright amber)
+    
+    # === Button States ===
+    BUTTON_ACTIVE_BG = '#3f3f46'  # Active button background (dark gray)
+    BUTTON_PRESSED_BG = '#2d2d30'  # Pressed button background (darker gray)
 
 # ============================================================================
 # FONTS

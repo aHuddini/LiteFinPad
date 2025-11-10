@@ -50,10 +50,14 @@ class ExpenseData:
 class ExpenseTableManager:
     """Manages the expense table display and operations"""
     
-    def __init__(self, parent_frame: ttk.Frame, on_expense_change: Optional[Callable] = None):
+    def __init__(self, parent_frame: ttk.Frame, on_expense_change: Optional[Callable] = None, theme_manager=None):
         self.parent_frame = parent_frame
         self.on_expense_change = on_expense_change
+        self.theme_manager = theme_manager
         self.expenses: List[ExpenseData] = []
+        
+        # Get theme-aware colors
+        self.colors = theme_manager.get_colors() if theme_manager else config.Colors
         
         # Sort state tracking
         self.sort_column = config.TreeView.DEFAULT_SORT_COLUMN  # Default: 'Date'
@@ -69,9 +73,22 @@ class ExpenseTableManager:
         
     def setup_table(self):
         """Setup the expense table with modern styling"""
-        # Create main container frame
-        self.table_frame = ttk.LabelFrame(self.parent_frame, text="", padding="10")
-        self.table_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
+        # Configure LabelFrame style to match parent background (expense_list_frame)
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        frame_bg = self.colors.BG_SECONDARY if is_dark else self.colors.BG_LIGHT_GRAY
+        
+        # Create style for table frame to match parent background
+        style = ttk.Style()
+        style.configure("TableContainer.TLabelframe", 
+                       background=frame_bg,
+                       bordercolor=self.colors.BG_DARK_GRAY,
+                       borderwidth=1)  # 1px border
+        style.configure("TableContainer.TLabelframe.Label", 
+                       background=frame_bg)
+        
+        # Create main container frame with custom style
+        self.table_frame = ttk.LabelFrame(self.parent_frame, text="", padding="10", style="TableContainer.TLabelframe")
+        self.table_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))  # Reduced bottom padding
         
         # Configure grid weights
         self.parent_frame.columnconfigure(0, weight=1)
@@ -85,7 +102,7 @@ class ExpenseTableManager:
             self.table_frame, 
             columns=columns, 
             show="headings", 
-            height=8,
+            height=11,  # Increased from 8 to show more entries
             style="Modern.Treeview"
         )
         
@@ -102,20 +119,29 @@ class ExpenseTableManager:
         self.tree.column("Amount", width=120, minwidth=100, anchor="e")  # Wider for 5-digit amounts
         self.tree.column("Description", width=230, minwidth=140, anchor="w")  # Reduced to balance with Date/Amount
         
-        # Configure modern styling
+        # Configure modern styling with theme-aware colors
+        # Use grayish navy blue for table background in dark mode only (subtle but noticeable)
+        # Keep original white/light gray in light mode
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        if is_dark and hasattr(self.colors, 'BG_TABLE'):
+            table_bg = self.colors.BG_TABLE  # Grayish navy blue in dark mode
+        else:
+            table_bg = self.colors.BG_WHITE if not is_dark else self.colors.BG_SECONDARY  # Original colors
+        table_fg = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+        
         style = ttk.Style()
         style.configure("Modern.Treeview", 
                        font=config.get_font(config.Fonts.SIZE_SMALL),
                        rowheight=config.TreeView.ROW_HEIGHT,
-                       background='white',
-                       foreground='black',
-                       fieldbackground='white')
+                       background=table_bg,
+                       foreground=table_fg,
+                       fieldbackground=table_bg)
         style.configure("Modern.Treeview.Heading",
                        font=config.get_font(config.TreeView.HEADER_FONT_SIZE, 'bold'),
-                       background=config.Colors.BG_LIGHT_GRAY,
-                       foreground='black')
+                       background=self.colors.BG_LIGHT_GRAY,
+                       foreground=table_fg)
         style.map("Modern.Treeview", 
-                 background=[('selected', config.Colors.BLUE_SELECTED)],
+                 background=[('selected', self.colors.BLUE_SELECTED)],
                  foreground=[('selected', 'white')])
         
         # Add treeview directly to table frame
@@ -126,8 +152,8 @@ class ExpenseTableManager:
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.tree.configure(yscrollcommand=scrollbar.set)
         
-        # Configure tags for future expenses
-        self.tree.tag_configure('future', foreground=config.Colors.TEXT_GRAY_LIGHT, font=config.get_font(config.Fonts.SIZE_SMALL, 'italic'))
+        # Configure tags for future expenses with theme-aware color
+        self.tree.tag_configure('future', foreground=self.colors.TEXT_GRAY_LIGHT, font=config.get_font(config.Fonts.SIZE_SMALL, 'italic'))
         
         # Bind events
         self.tree.bind("<Button-3>", self.show_context_menu)  # Right-click
@@ -135,14 +161,27 @@ class ExpenseTableManager:
         self.tree.bind("<Delete>", self.delete_selected_expense)  # Delete key
         
         # Add status bar
-        self.status_frame = ttk.Frame(self.table_frame)
+        # Configure frame background to match parent (expense_list_frame) - BG_SECONDARY in dark, BG_LIGHT_GRAY in light
+        status_frame_bg = self.colors.BG_SECONDARY if is_dark else self.colors.BG_LIGHT_GRAY
+        status_style = ttk.Style()
+        status_style.configure("TableStatus.TFrame", background=status_frame_bg)
+        
+        self.status_frame = ttk.Frame(self.table_frame, style="TableStatus.TFrame")
         self.status_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
-        self.status_label = ttk.Label(self.status_frame, text="No expenses", font=config.Fonts.LABEL)
+        # Configure ttk.Style for status and pagination labels (ttk.Label requires style configuration)
+        status_text_color = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+        status_style.configure("TableStatus.TLabel", 
+                             foreground=status_text_color,
+                             background=status_frame_bg,  # Match frame background
+                             font=config.Fonts.LABEL)
+        
+        self.status_label = ttk.Label(self.status_frame, text="No expenses", style="TableStatus.TLabel")
         self.status_label.pack(side=tk.LEFT)
         
         # Add pagination controls (right side)
-        self.pagination_frame = ttk.Frame(self.status_frame)
+        # Pagination frame should also match the background
+        self.pagination_frame = ttk.Frame(self.status_frame, style="TableStatus.TFrame")
         self.pagination_frame.pack(side=tk.RIGHT)
         
         self.first_page_btn = ttk.Button(self.pagination_frame, text="◄◄", width=3, command=self.first_page)
@@ -151,7 +190,7 @@ class ExpenseTableManager:
         self.prev_page_btn = ttk.Button(self.pagination_frame, text="◄", width=3, command=self.prev_page)
         self.prev_page_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        self.page_label = ttk.Label(self.pagination_frame, text="1/1", font=config.Fonts.LABEL)
+        self.page_label = ttk.Label(self.pagination_frame, text="1/1", style="TableStatus.TLabel")
         self.page_label.pack(side=tk.LEFT, padx=(0, 5))
         
         self.next_page_btn = ttk.Button(self.pagination_frame, text="►", width=3, command=self.next_page)
@@ -227,8 +266,18 @@ class ExpenseTableManager:
     
     def _update_pagination_controls(self, total_pages: int):
         """Update pagination control visibility and state"""
-        # Update page label
-        self.page_label.config(text=f"{self.current_page}/{total_pages}")
+        # Update page label with theme-aware colors
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        status_text_color = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+        
+        # Update ttk.Style for page label
+        status_style = ttk.Style()
+        status_style.configure("TableStatus.TLabel", 
+                             foreground=status_text_color,
+                             background=self.colors.BG_LIGHT_GRAY,
+                             font=config.Fonts.LABEL)
+        
+        self.page_label.config(text=f"{self.current_page}/{total_pages}", style="TableStatus.TLabel")
         
         # Enable/disable buttons based on current page
         if total_pages <= 1:
@@ -377,10 +426,21 @@ class ExpenseTableManager:
             future_count = sum(1 for e in self.expenses 
                              if (dt := DateUtils.parse_date(e.date)) and dt.date() > today)
             
+            # Update status label with theme-aware colors
+            is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+            status_text_color = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+            
+            # Update ttk.Style for status label
+            status_style = ttk.Style()
+            status_style.configure("TableStatus.TLabel", 
+                                 foreground=status_text_color,
+                                 background=self.colors.BG_LIGHT_GRAY,
+                                 font=config.Fonts.LABEL)
+            
             if future_count > 0:
-                self.status_label.config(text=f"{count} expenses ({future_count} future)")
+                self.status_label.config(text=f"{count} expenses ({future_count} future)", style="TableStatus.TLabel")
             else:
-                self.status_label.config(text=f"{count} expenses")
+                self.status_label.config(text=f"{count} expenses", style="TableStatus.TLabel")
             
             # Update pagination controls
             self._update_pagination_controls(total_pages)
@@ -391,7 +451,18 @@ class ExpenseTableManager:
                 "$0.00",
                 "Add your first expense!"
             ))
-            self.status_label.config(text="No expenses")
+            # Update status label with theme-aware colors
+            is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+            status_text_color = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+            
+            # Update ttk.Style for status label
+            status_style = ttk.Style()
+            status_style.configure("TableStatus.TLabel", 
+                                 foreground=status_text_color,
+                                 background=self.colors.BG_LIGHT_GRAY,
+                                 font=config.Fonts.LABEL)
+            
+            self.status_label.config(text="No expenses", style="TableStatus.TLabel")
             
             # Hide pagination when no expenses
             self._update_pagination_controls(1)
@@ -453,12 +524,13 @@ class ExpenseTableManager:
             messagebox.showerror(config.Messages.TITLE_ERROR, "Could not find expense to edit.")
             return
             
-        # Open edit dialog
+        # Open edit dialog with theme_manager
         expense = self.expenses[expense_index]
         dialog = ExpenseEditDialog(
             self.parent_frame.winfo_toplevel(), 
             expense, 
-            lambda new_expense: self.update_expense(expense_index, new_expense)
+            lambda new_expense: self.update_expense(expense_index, new_expense),
+            theme_manager=self.theme_manager
         )
         
     def delete_selected_expense(self, event=None):
@@ -544,16 +616,21 @@ class ExpenseTableManager:
 class ExpenseAddDialog:
     """Modern add expense dialog with improved UX"""
     
-    def __init__(self, parent, on_add: Callable[[ExpenseData], None], description_history=None):
+    def __init__(self, parent, on_add: Callable[[ExpenseData], None], description_history=None, theme_manager=None):
         self.on_add = on_add
         self.description_history = description_history
+        self.theme_manager = theme_manager
         
-        # Create dialog using DialogHelper
+        # Get theme-aware colors
+        self.colors = theme_manager.get_colors() if theme_manager else config.Colors
+        
+        # Create dialog using DialogHelper with theme-aware colors
         self.dialog = DialogHelper.create_dialog(
             parent,
             "Add New Expense",
             config.Dialog.ADD_EXPENSE_WIDTH,
-            config.Dialog.ADD_EXPENSE_HEIGHT
+            config.Dialog.ADD_EXPENSE_HEIGHT,
+            colors=self.colors
         )
         
         # Setup GUI first (while hidden)
@@ -597,8 +674,21 @@ class ExpenseAddDialog:
     
     def setup_number_pad(self, parent_frame):
         """Setup calculator-style number pad for amount entry"""
-        # Number pad container (no label text)
-        pad_frame = ttk.LabelFrame(parent_frame, text="", padding="10")
+        # Get theme-aware background color for numpad frame
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        dialog_bg = self.colors.BG_SECONDARY if is_dark else self.colors.BG_LIGHT_GRAY
+        
+        # Configure style for numpad LabelFrame to match dialog background
+        style = ttk.Style()
+        style.configure('NumPad.TLabelframe', 
+                       background=dialog_bg,
+                       bordercolor=self.colors.BG_DARK_GRAY,
+                       borderwidth=0)
+        style.configure('NumPad.TLabelframe.Label', 
+                       background=dialog_bg)
+        
+        # Number pad container (no label text) - use theme-aware style
+        pad_frame = ttk.LabelFrame(parent_frame, text="", padding="10", style='NumPad.TLabelframe')
         pad_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
         # Configure style for number pad buttons (taller, narrower)
@@ -685,8 +775,30 @@ class ExpenseAddDialog:
         style = ttk.Style()
         style.theme_use('clam')
         
+        # Ensure dialog background matches main_frame for consistency
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        dialog_bg = self.colors.BG_SECONDARY if is_dark else self.colors.BG_LIGHT_GRAY
+        self.dialog.configure(bg=dialog_bg)
+        
+        # Configure main_frame background to match dialog (use specific style to avoid global conflicts)
+        style.configure('AddDialog.TFrame', background=dialog_bg)
+        
+        # Configure ttk.Style for Add Expense dialog entry fields (slightly lighter gray, matching Quick Add inline)
+        entry_bg = self.colors.BG_MEDIUM_GRAY if is_dark else self.colors.BG_WHITE
+        entry_fg = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+        style.configure('AddDialog.TEntry',
+                       fieldbackground=entry_bg,
+                       foreground=entry_fg,
+                       borderwidth=1,
+                       relief='solid')
+        # Also configure style for Combobox (used by AutoCompleteEntry)
+        style.configure('AddDialog.TCombobox',
+                       fieldbackground=entry_bg,
+                       foreground=entry_fg,
+                       borderwidth=1)
+        
         # Main container with padding
-        main_frame = ttk.Frame(self.dialog, padding="20")
+        main_frame = ttk.Frame(self.dialog, padding="20", style='AddDialog.TFrame')
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid
@@ -695,7 +807,10 @@ class ExpenseAddDialog:
         main_frame.columnconfigure(0, weight=1)
         
         # Amount field
-        ttk.Label(main_frame, text="Amount ($):", font=config.Fonts.LABEL).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Amount ($):", 
+                 font=config.Fonts.LABEL,
+                 foreground=self.colors.TEXT_BLACK,
+                 background=dialog_bg).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         self.amount_var = tk.StringVar()
         
         # Register validation function
@@ -703,14 +818,18 @@ class ExpenseAddDialog:
         
         self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var,
                                      font=config.Fonts.ENTRY,
-                                     validate='key', validatecommand=vcmd)
+                                     validate='key', validatecommand=vcmd,
+                                     style='AddDialog.TEntry')  # Apply theme-aware styling
         self.amount_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
         # Number pad frame
         self.setup_number_pad(main_frame)
         
         # Description field with auto-complete
-        ttk.Label(main_frame, text="Description:", font=("Segoe UI", 10)).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Description:", 
+                 font=config.Fonts.LABEL,
+                 foreground=self.colors.TEXT_BLACK,
+                 background=dialog_bg).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         self.description_var = tk.StringVar()
         
         if self.description_history:
@@ -731,7 +850,8 @@ class ExpenseAddDialog:
                 get_suggestions_callback=get_suggestions,
                 show_on_focus=self.description_history.should_show_on_focus(),
                 min_chars=self.description_history.get_min_chars(),
-                font=config.Fonts.ENTRY
+                font=config.Fonts.ENTRY,
+                style='AddDialog.TCombobox'  # Apply theme-aware styling
             )
             self.description_entry.grid(row=0, column=0, sticky=(tk.W, tk.E))
             # CRITICAL: Replace entry_var and rebind trace callback
@@ -745,11 +865,15 @@ class ExpenseAddDialog:
         else:
             # Plain entry (fallback if no description_history)
             self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
-                                              font=config.Fonts.ENTRY)
+                                              font=config.Fonts.ENTRY,
+                                              style='AddDialog.TEntry')  # Apply theme-aware styling
             self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
         
         # Date field with collapsible month combobox
-        ttk.Label(main_frame, text="Date:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Date:", 
+                 font=config.Fonts.LABEL,
+                 foreground=self.colors.TEXT_BLACK,
+                 background=dialog_bg).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
         
         # Create collapsible date combobox (all 12 months with accordion behavior)
         self.date_combo = CollapsibleDateCombobox(main_frame)
@@ -837,16 +961,21 @@ class ExpenseAddDialog:
 class ExpenseEditDialog:
     """Modern edit expense dialog"""
     
-    def __init__(self, parent, expense: ExpenseData, on_update: Callable[[ExpenseData], None]):
+    def __init__(self, parent, expense: ExpenseData, on_update: Callable[[ExpenseData], None], theme_manager=None):
         self.expense = expense
         self.on_update = on_update
+        self.theme_manager = theme_manager
         
-        # Create dialog using DialogHelper
+        # Get theme-aware colors
+        self.colors = theme_manager.get_colors() if theme_manager else config.Colors
+        
+        # Create dialog using DialogHelper with theme-aware colors
         self.dialog = DialogHelper.create_dialog(
             parent,
             "Edit Expense",
             config.Dialog.EDIT_EXPENSE_WIDTH,
-            config.Dialog.EDIT_EXPENSE_HEIGHT
+            config.Dialog.EDIT_EXPENSE_HEIGHT,
+            colors=self.colors
         )
         
         # Setup GUI
@@ -882,12 +1011,20 @@ class ExpenseEditDialog:
     
     def setup_dialog(self):
         """Setup dialog components"""
-        # Configure style
+        # Configure style first
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Main container
-        main_frame = ttk.Frame(self.dialog, padding="20")
+        # Ensure dialog background matches main_frame for consistency
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        dialog_bg = self.colors.BG_SECONDARY if is_dark else self.colors.BG_LIGHT_GRAY
+        self.dialog.configure(bg=dialog_bg)
+        
+        # Configure main_frame background to match dialog (use specific style to avoid global conflicts)
+        style.configure('EditDialog.TFrame', background=dialog_bg)
+        
+        # Main container (use specific style to avoid global conflicts)
+        main_frame = ttk.Frame(self.dialog, padding="20", style='EditDialog.TFrame')
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid
@@ -895,27 +1032,51 @@ class ExpenseEditDialog:
         self.dialog.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         
+        # Configure ttk.Style for Edit Expense dialog labels (theme-aware backgrounds)
+        style.configure('EditDialog.TLabel', 
+                       font=config.Fonts.LABEL,
+                       foreground=self.colors.TEXT_BLACK,
+                       background=dialog_bg)
+        style.configure('EditDialog.Header.TLabel', 
+                       font=config.Fonts.HEADER,
+                       foreground=self.colors.TEXT_BLACK,
+                       background=dialog_bg)
+        
+        # Configure ttk.Style for Edit Expense dialog entry fields (theme-aware)
+        entry_bg = self.colors.BG_TERTIARY if is_dark else self.colors.BG_WHITE
+        entry_fg = self.colors.TEXT_BLACK  # Theme-aware: TEXT_BLACK in light, TEXT_PRIMARY in dark
+        style.configure('EditDialog.TEntry',
+                       fieldbackground=entry_bg,
+                       foreground=entry_fg,
+                       borderwidth=1,
+                       relief='solid')
+        
         # Title
         title_label = ttk.Label(main_frame, text="Edit Expense", 
-                               font=config.Fonts.HEADER)
+                               style='EditDialog.Header.TLabel')
         title_label.grid(row=0, column=0, pady=(0, 20))
         
         # Amount field
-        ttk.Label(main_frame, text="Amount:", font=config.Fonts.LABEL).grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Amount:", 
+                 style='EditDialog.TLabel').grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
         self.amount_var = tk.StringVar(value=InputValidation.format_amount(self.expense.amount))
         self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var, 
-                                     width=25, font=config.Fonts.ENTRY)
+                                     width=25, font=config.Fonts.ENTRY,
+                                     style='EditDialog.TEntry')
         self.amount_entry.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Description field
-        ttk.Label(main_frame, text="Description:", font=config.Fonts.LABEL).grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Description:", 
+                 style='EditDialog.TLabel').grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         self.description_var = tk.StringVar(value=self.expense.description)
         self.description_entry = ttk.Entry(main_frame, textvariable=self.description_var, 
-                                          width=25, font=config.Fonts.ENTRY)
+                                          width=25, font=config.Fonts.ENTRY,
+                                          style='EditDialog.TEntry')
         self.description_entry.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Date field with collapsible month combobox
-        ttk.Label(main_frame, text="Date:", font=config.Fonts.LABEL).grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(main_frame, text="Date:", 
+                 style='EditDialog.TLabel').grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
         
         # Create collapsible date combobox (all 12 months with accordion behavior)
         self.date_combo = CollapsibleDateCombobox(main_frame)

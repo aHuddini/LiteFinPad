@@ -39,16 +39,18 @@ class StatusBarManager:
     automatic timer management and visibility control.
     """
     
-    def __init__(self, parent_widget, config_module=None):
+    def __init__(self, parent_widget, config_module=None, theme_manager=None):
         """
         Initialize the status bar manager.
         
         Args:
             parent_widget: Tkinter parent widget (root window or frame)
             config_module: Optional config module (defaults to imported config)
+            theme_manager: Optional ThemeManager instance for theme-aware colors
         """
         self.parent = parent_widget
         self.config = config_module if config_module else config
+        self.theme_manager = theme_manager
         
         # Status bar widgets (created in create_ui())
         self.status_bar_frame = None
@@ -67,10 +69,26 @@ class StatusBarManager:
         Returns:
             tk.Frame: The status bar frame widget
         """
+        # Get theme-aware colors
+        if self.theme_manager:
+            colors = self.theme_manager.get_colors()
+            is_dark = self.theme_manager.is_dark_mode()
+            # Use BG_TERTIARY (#2d2d30) in dark mode for dark gray status bar
+            # Use BG_COLOR (#e5e5e5) in light mode
+            bg_color = colors.BG_TERTIARY if is_dark else self.config.StatusBar.BG_COLOR
+            # Use white text in dark mode for maximum visibility
+            text_color = '#ffffff' if is_dark else self.config.StatusBar.TEXT_COLOR
+            # Use BG_DARK_GRAY for border in dark mode, BORDER_COLOR in light mode
+            border_color = colors.BG_DARK_GRAY if is_dark else self.config.StatusBar.BORDER_COLOR
+        else:
+            bg_color = self.config.StatusBar.BG_COLOR
+            text_color = self.config.StatusBar.TEXT_COLOR
+            border_color = self.config.StatusBar.BORDER_COLOR
+        
         # Status bar frame
         self.status_bar_frame = tk.Frame(
             self.parent,
-            bg=self.config.StatusBar.BG_COLOR,
+            bg=bg_color,
             height=self.config.StatusBar.HEIGHT,
             relief=tk.FLAT,
             borderwidth=0
@@ -82,7 +100,7 @@ class StatusBarManager:
         # Add top border for separation
         separator = tk.Frame(
             self.status_bar_frame,
-            bg=self.config.StatusBar.BORDER_COLOR,
+            bg=border_color,
             height=1
         )
         separator.pack(side=tk.TOP, fill=tk.X)
@@ -91,8 +109,8 @@ class StatusBarManager:
         self.status_label = tk.Label(
             self.status_bar_frame,
             text="",
-            bg=self.config.StatusBar.BG_COLOR,
-            fg=self.config.StatusBar.TEXT_COLOR,
+            bg=bg_color,
+            fg=text_color,
             font=self.config.get_font(self.config.Fonts.SIZE_SMALL),
             anchor='w',
             padx=10,
@@ -117,6 +135,17 @@ class StatusBarManager:
         """
         if not self.status_label:
             return  # Status bar not created yet
+        
+        # Refresh theme-aware colors in case theme changed
+        if self.theme_manager:
+            colors = self.theme_manager.get_colors()
+            is_dark = self.theme_manager.is_dark_mode()
+            bg_color = colors.BG_TERTIARY if is_dark else self.config.StatusBar.BG_COLOR
+            text_color = '#ffffff' if is_dark else self.config.StatusBar.TEXT_COLOR
+            
+            # Update frame and label colors
+            self.status_bar_frame.configure(bg=bg_color)
+            self.status_label.configure(bg=bg_color, fg=text_color)
         
         # Update label text
         self.status_label.config(text=f"{icon} {message}")

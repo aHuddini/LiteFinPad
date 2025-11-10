@@ -24,11 +24,16 @@ class LiteFinPadGUI:
     def __init__(self, root, expense_tracker):
         self.root = root
         self.expense_tracker = expense_tracker
+        
+        # Initialize theme manager FIRST (before styles)
+        from theme_manager import ThemeManager
+        self.theme_manager = ThemeManager()
+        
         self.setup_window()
         self.setup_styles()
         
-        # Initialize managers
-        self.status_manager = StatusBarManager(self.root)
+        # Initialize managers (pass theme_manager for theme-aware colors)
+        self.status_manager = StatusBarManager(self.root, theme_manager=self.theme_manager)
         self.page_manager = PageManager()
         self.tooltip_manager = TooltipManager()
         
@@ -46,7 +51,12 @@ class LiteFinPadGUI:
         self.root.title(f"LiteFinPad v{version} - Monthly Expense Tracker")
         self.root.geometry(f"{config.Window.WIDTH}x{config.Window.HEIGHT}")  # Increased height for inline Quick Add section
         self.root.resizable(False, False)
-        self.root.configure(bg=config.Colors.BG_LIGHT_GRAY)
+        
+        # Use theme-aware background color - PoC shows root uses BG_MAIN in dark mode
+        colors = self.theme_manager.get_colors()
+        # Root window: BG_MAIN (#1e1e1e) in dark mode, BG_WHITE in light mode (per PoC)
+        root_bg = colors.BG_MAIN if self.theme_manager.is_dark_mode() else colors.BG_WHITE
+        self.root.configure(bg=root_bg)
         
         # Anti-flicker optimizations
         self.root.update_idletasks()  # Force initial rendering
@@ -54,8 +64,12 @@ class LiteFinPadGUI:
         
     def setup_styles(self):
         """Configure modern Windows 11 styling and CustomTkinter theme"""
-        # Initialize CustomTkinter theme
-        ctk.set_appearance_mode(config.CustomTkinterTheme.APPEARANCE_MODE)
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
+        archive_tint = self.theme_manager.get_archive_tint()
+        
+        # Initialize CustomTkinter theme (already set by theme_manager, but ensure it's applied)
+        ctk.set_appearance_mode("dark" if self.theme_manager.is_dark_mode() else "light")
         ctk.set_default_color_theme(config.CustomTkinterTheme.COLOR_THEME)
         
         # Keep ttk styles for widgets not yet migrated to CustomTkinter
@@ -64,36 +78,39 @@ class LiteFinPadGUI:
         
         # === NORMAL MODE STYLES ===
         # Frame backgrounds
-        self.style.configure('TFrame', background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('TLabelframe', background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('TLabelframe.Label', background=config.Colors.BG_LIGHT_GRAY)
+        self.style.configure('TFrame', background=colors.BG_LIGHT_GRAY)
+        self.style.configure('TLabelframe', background=colors.BG_LIGHT_GRAY)
+        self.style.configure('TLabelframe.Label', background=colors.BG_LIGHT_GRAY)
         
         # Default TLabel - must explicitly match frame background for labels without specific styles
-        self.style.configure('TLabel', background=config.Colors.BG_LIGHT_GRAY)
+        self.style.configure('TLabel', background=colors.BG_LIGHT_GRAY)
         
         # Specific label styles (explicit background to match frames)
-        self.style.configure('Title.TLabel', font=config.Fonts.TITLE, foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Month.TLabel', font=config.Fonts.SUBTITLE, foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Count.TLabel', font=config.get_font(config.Fonts.SIZE_LARGE), foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Total.TLabel', font=config.Fonts.HERO_TOTAL, foreground=config.Colors.GREEN_PRIMARY, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Rate.TLabel', font=config.get_font(config.Fonts.SIZE_MEDIUM), foreground=config.Colors.TEXT_GRAY_DARK, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Analytics.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.TEXT_GRAY_MEDIUM, background=config.Colors.BG_LIGHT_GRAY)
-        self.style.configure('Trend.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.PURPLE_PRIMARY, background=config.Colors.BG_LIGHT_GRAY)
+        self.style.configure('Title.TLabel', font=config.Fonts.TITLE, foreground=colors.TEXT_BLACK, background=colors.BG_LIGHT_GRAY)
+        self.style.configure('Month.TLabel', font=config.Fonts.SUBTITLE, foreground=colors.TEXT_BLACK, background=colors.BG_LIGHT_GRAY)
+        self.style.configure('Count.TLabel', font=config.get_font(config.Fonts.SIZE_LARGE), foreground=colors.TEXT_BLACK, background=colors.BG_LIGHT_GRAY)
+        self.style.configure('Total.TLabel', font=config.Fonts.HERO_TOTAL, foreground=colors.GREEN_PRIMARY, background=colors.BG_LIGHT_GRAY)
+        self.style.configure('Rate.TLabel', font=config.get_font(config.Fonts.SIZE_MEDIUM), foreground=colors.TEXT_GRAY_DARK, background=colors.BG_LIGHT_GRAY)
+        # Analytics.TLabel - use theme-aware background
+        analytics_bg = colors.BG_SECONDARY if self.theme_manager.is_dark_mode() else colors.BG_LIGHT_GRAY
+        self.style.configure('Analytics.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=colors.TEXT_GRAY_MEDIUM, background=analytics_bg)
+        self.style.configure('Trend.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=colors.PURPLE_PRIMARY, background=analytics_bg)
         
         # === ARCHIVE MODE STYLES ===
-        self.style.configure('Archive.TFrame', background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.TLabelframe', background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.TLabelframe.Label', background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.TLabel', background=config.Colors.BG_ARCHIVE_TINT)
+        # Archive mode uses theme-aware tint (light lavender for light mode, dark purple for dark mode)
+        self.style.configure('Archive.TFrame', background=archive_tint)
+        self.style.configure('Archive.TLabelframe', background=archive_tint)
+        self.style.configure('Archive.TLabelframe.Label', background=archive_tint)
+        self.style.configure('Archive.TLabel', background=archive_tint)
         
-        # Archive label styles
-        self.style.configure('Archive.Title.TLabel', font=config.Fonts.TITLE, foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Month.TLabel', font=config.Fonts.SUBTITLE, foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Count.TLabel', font=config.get_font(config.Fonts.SIZE_LARGE), foreground=config.Colors.TEXT_BLACK, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Total.TLabel', font=config.Fonts.HERO_TOTAL, foreground=config.Colors.PURPLE_ARCHIVE, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Rate.TLabel', font=config.get_font(config.Fonts.SIZE_MEDIUM), foreground=config.Colors.TEXT_GRAY_DARK, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Analytics.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.TEXT_GRAY_MEDIUM, background=config.Colors.BG_ARCHIVE_TINT)
-        self.style.configure('Archive.Trend.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=config.Colors.PURPLE_PRIMARY, background=config.Colors.BG_ARCHIVE_TINT)
+        # Archive label styles - use theme-aware colors
+        self.style.configure('Archive.Title.TLabel', font=config.Fonts.TITLE, foreground=colors.TEXT_BLACK, background=archive_tint)
+        self.style.configure('Archive.Month.TLabel', font=config.Fonts.SUBTITLE, foreground=colors.TEXT_BLACK, background=archive_tint)
+        self.style.configure('Archive.Count.TLabel', font=config.get_font(config.Fonts.SIZE_LARGE), foreground=colors.TEXT_BLACK, background=archive_tint)
+        self.style.configure('Archive.Total.TLabel', font=config.Fonts.HERO_TOTAL, foreground=colors.PURPLE_ARCHIVE, background=archive_tint)
+        self.style.configure('Archive.Rate.TLabel', font=config.get_font(config.Fonts.SIZE_MEDIUM), foreground=colors.TEXT_GRAY_DARK, background=archive_tint)
+        self.style.configure('Archive.Analytics.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=colors.TEXT_GRAY_MEDIUM, background=archive_tint)
+        self.style.configure('Archive.Trend.TLabel', font=config.get_font(config.Fonts.SIZE_NORMAL), foreground=colors.PURPLE_PRIMARY, background=archive_tint)
         
         # Button styles
         self.style.configure('Modern.TButton', font=config.Fonts.BUTTON, anchor='center')
@@ -114,9 +131,13 @@ class LiteFinPadGUI:
         
     def create_widgets(self):
         """Create all GUI widgets with proper layout"""
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
+        
         # Main container frame - this will hold both pages (using CTkFrame for consistency)
-        # Match window background color for seamless appearance
-        self.main_container = ctk.CTkFrame(self.root, fg_color=config.Colors.BG_LIGHT_GRAY)
+        # Main container: BG_SECONDARY (#252526) in dark mode, BG_LIGHT_GRAY in light mode (per PoC)
+        container_bg = colors.BG_SECONDARY if self.theme_manager.is_dark_mode() else colors.BG_LIGHT_GRAY
+        self.main_container = ctk.CTkFrame(self.root, fg_color=container_bg)
         self.main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights
@@ -150,7 +171,8 @@ class LiteFinPadGUI:
             table_manager=self.table_manager,
             tooltip_creator=self.tooltip_manager.create,
             update_display_callback=self.update_display,
-            update_metrics_callback=self.update_expense_metrics
+            update_metrics_callback=self.update_expense_metrics,
+            theme_manager=self.theme_manager
         )
         
         # Create status bar (at bottom of window)
@@ -161,9 +183,13 @@ class LiteFinPadGUI:
         
     def create_main_page(self):
         """Create the main dashboard page"""
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
+        
         # Main frame with standard padding (status bar hidden on main page) - using CTkFrame
-        # Match window background for seamless appearance
-        self.main_frame = ctk.CTkFrame(self.main_container, fg_color=config.Colors.BG_LIGHT_GRAY)
+        # Use BG_LIGHT_GRAY in light mode, BG_SECONDARY in dark mode (matches PoC)
+        frame_bg = colors.BG_SECONDARY if self.theme_manager.is_dark_mode() else colors.BG_LIGHT_GRAY
+        self.main_frame = ctk.CTkFrame(self.main_container, fg_color=frame_bg)
         self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=15, pady=(8, 2))  # Further reduced top padding for maximum compactness
         
         # Configure grid weights
@@ -185,7 +211,8 @@ class LiteFinPadGUI:
             self.main_frame,
             self.expense_tracker,
             callbacks,
-            self.tooltip_manager
+            self.tooltip_manager,
+            self.theme_manager
         )
         
         # Build all sections and store widget references
@@ -224,13 +251,13 @@ class LiteFinPadGUI:
         new_state = not current_state
         self.stay_on_top_var.set(new_state)
         
-        # Get the header frame's background color for OFF state
-        header_bg = self.style.lookup('TFrame', 'background')
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
         
         # Update label appearance - simple background color change
         if new_state:
-            # ON - gray background (CTkLabel uses fg_color, not background)
-            self.stay_on_top_label.configure(fg_color=config.Colors.BG_BUTTON_DISABLED)
+            # ON - use theme-aware button disabled color (darker in dark mode)
+            self.stay_on_top_label.configure(fg_color=colors.BG_BUTTON_DISABLED)
             # Update tooltip
             self.tooltip_manager.update(self.stay_on_top_label, "Stay on Top (ON)")
         else:
@@ -248,67 +275,90 @@ class LiteFinPadGUI:
     
     def show_about_dialog(self):
         """Show About dialog with version and credits"""
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
+        
         # Read version
         try:
             version = open('version.txt').read().strip()
         except:
             version = "Unknown"  # Fallback if version.txt is missing
         
-        # Create dialog
+        # Create dialog with theme-aware colors
         dialog = DialogHelper.create_dialog(
             self.root, "About LiteFinPad",
-            config.Dialog.ABOUT_WIDTH, config.Dialog.ABOUT_HEIGHT
+            config.Dialog.ABOUT_WIDTH, config.Dialog.ABOUT_HEIGHT,
+            colors=colors
         )
+        # Content frame with minimal padding to fit all content
         content = ctk.CTkFrame(dialog, fg_color="transparent")
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
         
-        # Helper function for creating labels (using CTkLabel)
-        def add_label(text, font, color, pady=(0, 10), **kwargs):
+        # Helper function for creating labels with proper alignment
+        def add_label(text, font, color, pady=(0, 6), anchor="center", **kwargs):
             label = ctk.CTkLabel(content, text=text, font=font, 
-                            text_color=color, justify=tk.CENTER, **kwargs)
+                            text_color=color, anchor=anchor, justify=tk.CENTER, **kwargs)
             label.pack(pady=pady)
             return label
         
-        # App title and version
+        # App title - centered
         add_label("LiteFinPad", config.Fonts.ABOUT_TITLE, 
-                 config.Colors.BLUE_LINK, pady=(0, 5))
-        add_label(f"Version {version}\nMonthly Expense Tracker", 
-                 config.Fonts.LABEL_SMALL, config.Colors.TEXT_GRAY_MEDIUM, 
-                 pady=(0, 15))
+                 colors.BLUE_LINK, pady=(0, 4), anchor="center")
         
-        # Separator (CTkFrame with border)
-        separator = ctk.CTkFrame(content, height=1, fg_color=config.Colors.BG_DARK_GRAY)
-        separator.pack(fill=tk.X, pady=(0, 15))
+        # Version - separate label, minimal padding
+        add_label(f"Version {version}", 
+                 config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_MEDIUM, 
+                 pady=(0, 1), anchor="center")
         
-        # Credits, features, and license combined
-        add_label("Built with AI assistance\n(Cursor + Claude Sonnet 4)\n\n"
-                 "✓ 100% offline - no internet connection required\n"
-                 "✓ Lightweight and fast\n"
-                 "✓ Export to Excel and PDF\n\n"
-                 "License: MIT", 
-                 config.Fonts.LABEL_SMALL, config.Colors.TEXT_GRAY_DARK,
-                 pady=(0, 15))
+        # Description - close to version, reduced padding
+        add_label("Monthly Expense Tracker", 
+                 config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_MEDIUM, 
+                 pady=(0, 8), anchor="center")
         
-        # Clickable GitHub link (using CTkLabel with underline font)
+        # Separator
+        separator = ctk.CTkFrame(content, height=1, fg_color=colors.BG_DARK_GRAY)
+        separator.pack(fill=tk.X, pady=(0, 12))
+        
+        # Built with section - combined to save space
+        add_label("Built with AI assistance\n(Cursor + Claude Sonnet 4)", 
+                 config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_DARK,
+                 pady=(0, 10), anchor="center")
+        
+        # Features - compact format
+        features_text = ("✓ 100% offline (no internet required)\n"
+                        "✓ Lightweight and fast\n"
+                        "✓ Export to Excel and PDF")
+        add_label(features_text, 
+                 config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_DARK,
+                 pady=(0, 10), anchor="center")
+        
+        # License - minimal padding
+        add_label("License: MIT", 
+                 config.Fonts.LABEL_SMALL, colors.TEXT_GRAY_DARK,
+                 pady=(0, 4), anchor="center")
+        
+        # GitHub link - more prominent, reduced spacing
         github = ctk.CTkLabel(
             content,
-            text="GitHub",
-            font=config.get_font(config.Fonts.SIZE_TINY, 'underline'),
-            text_color=config.Colors.BLUE_LINK,
-            cursor='hand2'
+            text="View on GitHub",
+            font=config.get_font(config.Fonts.SIZE_SMALL, 'underline'),
+            text_color=colors.BLUE_LINK,
+            cursor='hand2',
+            anchor="center"
         )
-        github.pack(pady=(0, 20))
+        github.pack(pady=(0, 4))
         github.bind('<Button-1>', lambda e: webbrowser.open('https://github.com/aHuddini/LiteFinPad'))
         
-        # Clickable Close link
+        # Close button - reduced spacing
         close = ctk.CTkLabel(
             content,
             text="Close",
             font=config.get_font(config.Fonts.SIZE_SMALL, 'underline'),
-            text_color=config.Colors.BLUE_LINK,
-            cursor='hand2'
+            text_color=colors.BLUE_LINK,
+            cursor='hand2',
+            anchor="center"
         )
-        close.pack()
+        close.pack(pady=(0, 0))
         close.bind('<Button-1>', lambda e: dialog.destroy())
         
         # Finalize dialog
@@ -320,26 +370,30 @@ class LiteFinPadGUI:
     
     def show_budget_dialog(self, event=None):
         """Show dialog to set monthly budget threshold"""
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors()
+        
         # Get current budget value
         current_budget = get_settings_manager().get('Budget', 'monthly_threshold', 0.0, value_type=float)
         
-        # Create dialog using DialogHelper (exactly like ExpenseAddDialog)
+        # Create dialog using DialogHelper with theme-aware colors
         dialog = DialogHelper.create_dialog(
             self.root,
             "Monthly Budget",
             config.Dialog.BUDGET_WIDTH,
-            config.Dialog.BUDGET_HEIGHT
+            config.Dialog.BUDGET_HEIGHT,
+            colors=colors
         )
         
-        # Set dialog background to match app theme (light gray)
-        dialog.configure(bg=config.Colors.BG_LIGHT_GRAY)
+        # Set dialog background to match app theme
+        dialog.configure(bg=colors.BG_LIGHT_GRAY)
         
         # Setup dialog content (using CTkFrame) - using grid() geometry manager (CustomTkinter recommended)
         # Note: CTkFrame doesn't support 'padding' parameter
         # External padding: padx/pady in geometry manager
         # Internal padding: CustomTkinter doesn't support ipadx/ipady like standard Tkinter
         # Internal spacing is controlled via widget width/height parameters
-        main_frame = ctk.CTkFrame(dialog, fg_color=config.Colors.BG_LIGHT_GRAY, corner_radius=0)
+        main_frame = ctk.CTkFrame(dialog, fg_color=colors.BG_LIGHT_GRAY, corner_radius=0)
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=15, pady=8)  # Standard padding - bottom padding on buttons_frame handles spacing
         
         # Configure grid for responsive layout
@@ -354,7 +408,7 @@ class LiteFinPadGUI:
             main_frame,
             text="Set monthly spending budget",
             font=config.get_font(config.Fonts.SIZE_NORMAL, 'bold'),
-            text_color=config.Colors.TEXT_BLACK,
+            text_color=colors.TEXT_BLACK,
             anchor="center"
         )
         instruction_label.grid(row=0, column=0, pady=(0, 5), sticky="")  # Centered (no sticky)
@@ -365,11 +419,15 @@ class LiteFinPadGUI:
         if current_budget == 0:
             current_budget_text += "\n(Click Here)"
         
+        # Use brighter blue in dark mode (BLUE_PRIMARY #4fc3f7), BLUE_DARK_NAVY in light mode
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+        threshold_color = colors.BLUE_PRIMARY if is_dark else colors.BLUE_DARK_NAVY
+        
         current_budget_label = ctk.CTkLabel(
             main_frame,
             text=current_budget_text,
             font=config.get_font(config.Fonts.SIZE_SMALL, 'underline'),
-            text_color=config.Colors.BLUE_DARK_NAVY,
+            text_color=threshold_color,  # Brighter blue in dark mode
             anchor="center"
         )
         current_budget_label.grid(row=1, column=0, pady=(0, 8), sticky="")  # Centered (no sticky)
@@ -409,7 +467,7 @@ class LiteFinPadGUI:
             main_frame,
             text="",
             font=config.get_font(config.Fonts.SIZE_SMALL),
-            text_color=config.Colors.RED_PRIMARY,
+            text_color=colors.RED_PRIMARY,
             height=0,  # Explicit height in pixels when empty - collapses to minimal space
             anchor="center"
         )
@@ -506,8 +564,8 @@ class LiteFinPadGUI:
             border_spacing=2,  # Explicit spacing between text and button border (default is 2)
             corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
             font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'),
-            fg_color=config.Colors.PURPLE_ARCHIVE,  # Navy purple color
-            hover_color=config.Colors.PURPLE_VIBRANT,  # Slightly darker on hover
+            fg_color=colors.PURPLE_ARCHIVE,  # Navy purple color
+            hover_color=colors.PURPLE_VIBRANT,  # Slightly darker on hover
             text_color="white"
         )
         set_button.pack(side=tk.LEFT, padx=(0, 10))  # Use pack() for original compact side-by-side layout
@@ -522,8 +580,8 @@ class LiteFinPadGUI:
             border_spacing=2,  # Explicit spacing between text and button border (default is 2)
             corner_radius=config.CustomTkinterTheme.CORNER_RADIUS,
             font=config.get_font(config.Fonts.SIZE_SMALL, 'bold'),
-            fg_color=config.Colors.BG_DARK_GRAY,
-            hover_color=config.Colors.TEXT_GRAY_MEDIUM,
+            fg_color=colors.BG_DARK_GRAY,
+            hover_color=colors.TEXT_GRAY_MEDIUM,
             text_color="white"
         )
         cancel_button.pack(side=tk.LEFT)  # Use pack() for original compact side-by-side layout
@@ -818,20 +876,32 @@ class LiteFinPadGUI:
                 except (ValueError, TypeError):
                     budget_threshold = 0.0
                 
+                # Get theme-aware colors
+                is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+                colors = self.theme_manager.get_colors() if self.theme_manager else config.Colors
+                
                 if budget_threshold > 0:
                     difference = budget_threshold - monthly_total  # Use calculated monthly total
                     if difference > 0:
                         budget_amount_text = f"+${difference:,.2f}"
                         budget_status_text = "(Under)"
-                        budget_color = config.Colors.GREEN_PRIMARY
+                        # Use theme-aware colors: bright green in dark mode, standard green in light mode
+                        if is_dark:
+                            budget_color = colors.GREEN_PRIMARY  # #00cc66 (bright green for dark mode)
+                        else:
+                            budget_color = config.Colors.GREEN_PRIMARY  # #107c10 (standard green for light mode)
                     else:
                         budget_amount_text = f"-${abs(difference):,.2f}"
                         budget_status_text = "(Over)"
-                        budget_color = config.Colors.RED_PRIMARY
+                        # Use theme-aware colors: bright red in dark mode, standard red in light mode
+                        if is_dark:
+                            budget_color = colors.RED_PRIMARY  # #f48771 (coral-red for dark mode)
+                        else:
+                            budget_color = config.Colors.RED_PRIMARY  # #8B0000 (standard red for light mode)
                 else:
                     budget_amount_text = "Not set"
                     budget_status_text = "(Click Here)"
-                    budget_color = config.Colors.TEXT_GRAY_MEDIUM
+                    budget_color = colors.TEXT_GRAY_MEDIUM
 
                 # Budget labels are ttk.Label widgets, use foreground
                 self.budget_amount_label.configure(text=budget_amount_text, foreground=budget_color)
@@ -886,7 +956,8 @@ class LiteFinPadGUI:
                 'status_manager': self.status_manager,
                 'page_manager': self.page_manager,
                 'gui_instance': self
-            }
+            },
+            theme_manager=self.theme_manager
         )
         
         # Build the page and get widget references

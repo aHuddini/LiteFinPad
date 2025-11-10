@@ -1,4 +1,4 @@
-# LiteFinPad v3.6
+# LiteFinPad v3.6.1
 
 <div align="center">
 
@@ -6,7 +6,7 @@
 
 **A lightweight, open-source, offline Windows expense tracker**
 
-![Version](https://img.shields.io/badge/version-3.6-blue.svg)
+![Version](https://img.shields.io/badge/version-3.6.1-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.14-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
@@ -47,6 +47,19 @@
 </table>
 
 </div>
+
+---
+
+## What's New in v3.6.1
+
+### Dark Mode (Experimental) (November 2025)
+
+**New Feature:**
+- Experimental dark mode theme for reduced eye strain
+- Modern dark color scheme with carefully selected contrast ratios
+- Fully theme-aware throughout the application (dialogs, tables, buttons)
+- Enable/disable via `settings.ini` file (see Configuration section below)
+- Works seamlessly with Archive Mode
 
 ---
 
@@ -249,6 +262,95 @@ python main.py
 
 ---
 
+## Configuration
+
+LiteFinPad uses a `settings.ini` file in the application directory to store user preferences and configuration options. You can edit this file with any text editor to customize the application behavior.
+
+### Location
+The `settings.ini` file is located in the same directory as the application executable (or `main.py` if running from source).
+
+### Available Settings
+
+#### Theme Settings
+```ini
+[Theme]
+dark_mode = true    # Enable dark mode (true) or light mode (false)
+```
+
+**Dark Mode (Experimental):**
+- Set `dark_mode = true` to enable the dark theme
+- Set `dark_mode = false` to use the default light theme
+- Changes take effect after restarting the application
+- Works seamlessly with Archive Mode
+
+#### Budget Settings
+```ini
+[Budget]
+monthly_threshold = 5000.0    # Your monthly spending budget (decimal number)
+```
+
+**Monthly Budget:**
+- Set your monthly spending threshold as a decimal number
+- Can also be set via the Budget Dialog in the application (click "vs. Budget" on dashboard)
+- Value persists across sessions
+
+#### Table Settings
+```ini
+[Table]
+sort_column = Date    # Default sort column (Date, Amount, Description)
+sort_order = desc     # Sort order (asc or desc)
+```
+
+**Table Preferences:**
+- `sort_column`: Default column to sort by when viewing expense list
+- `sort_order`: Default sort direction (ascending or descending)
+
+#### Export Settings
+```ini
+[Export]
+default_save_location =    # Default folder for exports (leave empty for system default)
+```
+
+**Export Preferences:**
+- Leave empty to use system default download folder
+- Set a custom path to always export to a specific location
+
+#### Logging Settings
+```ini
+[Logging]
+debug_mode = false    # Enable debug logging (true) or disable (false)
+```
+
+**Debug Mode:**
+- Set `debug_mode = true` for detailed logging (useful for troubleshooting)
+- Logs are saved to the `logs/` directory
+- Default is `false` for normal operation
+
+#### AutoComplete Settings (Advanced)
+```ini
+[AutoComplete]
+show_on_focus = true      # Show suggestions when field receives focus
+min_chars = 2             # Minimum characters before filtering suggestions
+max_suggestions = 5        # Maximum suggestions to display
+max_descriptions = 50     # Maximum descriptions to track in history
+```
+
+**AutoComplete Preferences:**
+- Controls behavior of description suggestion dropdown
+- Adjust these if you want more/fewer suggestions or different behavior
+
+### Editing Settings
+
+1. Close the application (if running)
+2. Open `settings.ini` in any text editor (Notepad, VS Code, etc.)
+3. Modify the values as needed
+4. Save the file
+5. Restart the application for changes to take effect
+
+**Note:** Be careful when editing - invalid values may cause the application to use defaults or fail to start. Always keep a backup of your `settings.ini` file.
+
+---
+
 ## Project Structure
 
 For developers, the project is organized into modular components:
@@ -304,7 +406,8 @@ For third-party licenses, see [THIRD_PARTY_LICENSES.md](docs/developer/THIRD_PAR
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| **3.6** | Nov 2025 | Archive mode improvements, code quality enhancements |
+| **3.6.1** | Nov 2025 | Dark Mode (Experimental), settings.ini documentation |
+| **3.6** | Nov 2025 | Budget threshold tracking, quick add autocomplete, archive mode improvements |
 | **3.5** | Oct 2025 | Archive mode, export features, system tray improvements |
 | **3.4** | Oct 2025 | Keyboard shortcuts, Enter navigation, Escape key support |
 | **3.3** | Oct 2025 | Enhanced import validation, real-time input validation |

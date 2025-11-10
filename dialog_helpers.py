@@ -12,7 +12,7 @@ class DialogHelper:
     """Static helper methods for creating and managing dialogs"""
     
     @staticmethod
-    def create_dialog(parent, title, width, height):
+    def create_dialog(parent, title, width, height, colors=None):
         """
         Creates a standard Toplevel dialog with common settings.
         
@@ -21,21 +21,27 @@ class DialogHelper:
             title: Dialog title
             width: Dialog width in pixels
             height: Dialog height in pixels
+            colors: Color scheme (defaults to config.Colors if not provided)
             
         Returns:
             tk.Toplevel: Configured dialog window
         """
+        if colors is None:
+            colors = config.Colors
         dialog = tk.Toplevel(parent)
         dialog.title(title)
         dialog.resizable(False, False)
         dialog.transient(parent)
-        dialog.configure(bg=config.Colors.BG_DIALOG)
+        # Use theme-aware background (BG_SECONDARY in dark, BG_LIGHT_GRAY in light)
+        # BG_DIALOG may not match the application theme, so use BG_SECONDARY/BG_LIGHT_GRAY
+        dialog_bg = colors.BG_SECONDARY if hasattr(colors, 'BG_SECONDARY') and hasattr(colors, 'BG_MAIN') else colors.BG_DIALOG
+        dialog.configure(bg=dialog_bg)
         dialog.geometry(f"{width}x{height}")
         dialog.withdraw()  # Hide until fully configured
         return dialog
     
     @staticmethod
-    def create_dialog_no_transient(parent, title, width, height):
+    def create_dialog_no_transient(parent, title, width, height, colors=None):
         """
         Creates a Toplevel dialog without transient setting.
         Used for dialogs that need to work independently of parent window state
@@ -46,15 +52,21 @@ class DialogHelper:
             title: Dialog title
             width: Dialog width in pixels
             height: Dialog height in pixels
+            colors: Color scheme (defaults to config.Colors if not provided)
             
         Returns:
             tk.Toplevel: Configured dialog window
         """
+        if colors is None:
+            colors = config.Colors
         dialog = tk.Toplevel(parent)
         dialog.title(title)
         dialog.resizable(False, False)
         # NOTE: No transient() call - dialog works independently
-        dialog.configure(bg=config.Colors.BG_DIALOG)
+        # Use theme-aware background (BG_SECONDARY in dark, BG_LIGHT_GRAY in light)
+        # BG_DIALOG may not match the application theme, so use BG_SECONDARY/BG_LIGHT_GRAY
+        dialog_bg = colors.BG_SECONDARY if hasattr(colors, 'BG_SECONDARY') and hasattr(colors, 'BG_MAIN') else colors.BG_DIALOG
+        dialog.configure(bg=dialog_bg)
         dialog.geometry(f"{width}x{height}")
         dialog.withdraw()  # Hide until fully configured
         return dialog

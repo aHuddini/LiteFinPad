@@ -38,7 +38,8 @@ class ArchiveModeManager:
                  quick_add_helper=None, table_manager=None,
                  tooltip_creator=None,
                  update_display_callback=None,
-                 update_metrics_callback=None):
+                 update_metrics_callback=None,
+                 theme_manager=None):
         """
         Initialize the Archive Mode Manager.
         
@@ -55,6 +56,7 @@ class ArchiveModeManager:
             tooltip_creator: Function to create tooltips (gui.create_tooltip)
             update_display_callback: Callback to update display (gui.update_display)
             update_metrics_callback: Callback to update metrics (gui.update_expense_metrics)
+            theme_manager: ThemeManager instance for theme-aware colors
         """
         self.root = root
         self.expense_tracker = expense_tracker
@@ -69,6 +71,7 @@ class ArchiveModeManager:
         self.tooltip_creator = tooltip_creator
         self.update_display_callback = update_display_callback
         self.update_metrics_callback = update_metrics_callback
+        self.theme_manager = theme_manager
     
     def is_archive_mode(self):
         """
@@ -145,10 +148,42 @@ class ArchiveModeManager:
             from error_logger import log_warning
             log_warning("update_display_callback is None - display will not update")
         
+        # CRITICAL: Update ttk.Style configurations FIRST (before widget updates)
+        # This ensures styles like 'Analytics.TFrame' and 'Progress.TFrame' are updated
+        self._update_ttk_styles(viewing_mode == "archive")
+        
+        # CRITICAL: Re-apply styles AFTER update_display() runs
+        # This ensures any widgets touched by update_display() get their styles refreshed
+        if viewing_mode == "archive":
+            archive = True
+        else:
+            archive = False
+        
+        # Apply to main_frame
+        if self.main_frame:
+            self.apply_styles_to_widgets(self.main_frame, archive=archive)
+            self.apply_customtkinter_styles(self.main_frame, archive=archive)
+        
+        # Apply to expense_list_frame
+        if self.expense_list_frame:
+            self.apply_styles_to_widgets(self.expense_list_frame, archive=archive)
+            self.apply_customtkinter_styles(self.expense_list_frame, archive=archive)
+        
+        # Force complete refresh - multiple passes to ensure all updates are applied
+        try:
+            self.root.update_idletasks()
+            self.root.update_idletasks()  # Second pass
+            self.root.update()  # Complete update
+        except:
+            pass
+        
         # Update expense list if we're on that page
         if (self.page_manager and self.page_manager.is_on_page("expense_list") 
             and self.table_manager):
             self.table_manager.load_expenses(self.expense_tracker.expenses)
+            # Refresh status bar style when theme/mode changes
+            if hasattr(self.table_manager, 'refresh_status_bar_style'):
+                self.table_manager.refresh_status_bar_style()
             if self.update_metrics_callback:
                 self.update_metrics_callback()
     
@@ -161,13 +196,15 @@ class ArchiveModeManager:
         # Window title: Show archive mode
         self.root.title(f"LiteFinPad v{version} - 📚 Archive: {month_name}")
         
-        # Background: Lavender tint
-        self.root.configure(bg=config.Colors.BG_ARCHIVE_TINT)
+        # Background: Theme-aware archive tint (light lavender for light mode, dark purple for dark mode)
+        archive_tint = self.theme_manager.get_archive_tint() if self.theme_manager else config.Colors.BG_ARCHIVE_TINT
+        # Root window uses archive tint
+        self.root.configure(bg=archive_tint)
         
-        # Update main_container (outer frame) to archive style
+        # Main container also uses archive tint
         if self.main_container:
             if isinstance(self.main_container, ctk.CTkFrame):
-                self.main_container.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+                self.main_container.configure(fg_color=archive_tint)
         
         # Switch main_frame to archive style
         if self.main_frame:
@@ -177,7 +214,7 @@ class ArchiveModeManager:
             if is_ctk_frame:
                 # CustomTkinter: use fg_color
                 try:
-                    self.main_frame.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+                    self.main_frame.configure(fg_color=archive_tint)
                 except Exception as e:
                     from error_logger import log_error
                     log_error(f"Error configuring main_frame fg_color: {e}", e)
@@ -198,7 +235,7 @@ class ArchiveModeManager:
             if is_ctk_frame:
                 # CustomTkinter: use fg_color
                 try:
-                    self.expense_list_frame.configure(fg_color=config.Colors.BG_ARCHIVE_TINT)
+                    self.expense_list_frame.configure(fg_color=archive_tint)
                 except Exception as e:
                     from error_logger import log_error
                     log_error(f"Error configuring expense_list_frame fg_color: {e}", e)
@@ -221,6 +258,18 @@ class ArchiveModeManager:
         # Apply archive styling to CustomTkinter widgets in main frame
         if self.main_frame:
             self.apply_customtkinter_styles(self.main_frame, archive=True)
+        
+        # Force update to ensure all changes are visible
+        if self.main_frame:
+            try:
+                self.main_frame.update_idletasks()
+            except:
+                pass
+        if self.root:
+            try:
+                self.root.update_idletasks()
+            except:
+                pass
         
         # Disable "+ Add Expense" button
         if self.add_expense_btn:
@@ -257,10 +306,10 @@ class ArchiveModeManager:
                         except:
                             pass
                         delattr(self.add_expense_btn, 'tooltip')
-                    self.tooltip_creator(
-                        self.add_expense_btn,
-                        f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
-                    )
+                self.tooltip_creator(
+                    self.add_expense_btn,
+                    f"Cannot add expenses in Archive mode. Switch to {actual_month_name}."
+                )
         
         # Disable Quick Add section (on expense list page)
         if self.quick_add_helper:
@@ -274,70 +323,74 @@ class ArchiveModeManager:
             )
     
     def _apply_normal_mode(self, version, month_display_text):
-        """Apply normal mode styling to all UI elements."""
+        """Apply normal mode styling to all UI elements - Simplified and reliable."""
         # Window title: Normal
         self.root.title(f"LiteFinPad v{version} - Monthly Expense Tracker")
         
-        # Background: Light gray (normal)
-        self.root.configure(bg=config.Colors.BG_LIGHT_GRAY)
+        # Get theme-aware colors
+        colors = self.theme_manager.get_colors() if self.theme_manager else config.Colors
+        is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
         
-        # Update main_container (outer frame) to normal style
+        # Root window: BG_MAIN (#1e1e1e) in dark mode, BG_WHITE in light mode (per PoC)
+        root_bg = colors.BG_MAIN if is_dark else colors.BG_WHITE
+        self.root.configure(bg=root_bg)
+        
+        # Main container: BG_SECONDARY (#252526) in dark mode, BG_LIGHT_GRAY in light mode (per PoC)
+        container_bg = colors.BG_SECONDARY if is_dark else colors.BG_LIGHT_GRAY
         if self.main_container:
             if isinstance(self.main_container, ctk.CTkFrame):
-                self.main_container.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
+                self.main_container.configure(fg_color=container_bg)
         
-        # Switch main_frame to normal style
+        # Main frame uses BG_LIGHT_GRAY (light) or BG_SECONDARY (dark)
+        frame_bg = colors.BG_SECONDARY if is_dark else colors.BG_LIGHT_GRAY
+        
+        # Switch main_frame to normal style - Simplified
         if self.main_frame:
-            # Check if it's a CustomTkinter widget or ttk widget
-            # Use both isinstance and hasattr for robust detection
-            is_ctk_frame = isinstance(self.main_frame, ctk.CTkFrame) or hasattr(self.main_frame, 'fg_color')
-            if is_ctk_frame:
-                # CustomTkinter: use fg_color
+            if isinstance(self.main_frame, ctk.CTkFrame) or hasattr(self.main_frame, 'fg_color'):
                 try:
-                    self.main_frame.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
-                except Exception as e:
-                    from error_logger import log_error
-                    log_error(f"Error configuring main_frame fg_color: {e}", e)
+                    self.main_frame.configure(fg_color=frame_bg)
+                except Exception:
+                    pass
             else:
-                # ttk widget: use style
                 try:
                     self.main_frame.configure(style='TFrame')
-                except Exception as e:
-                    from error_logger import log_error
-                    log_error(f"Error configuring main_frame style: {e}", e)
+                except Exception:
+                    pass
+            # Apply styles to all widgets (this updates all labels with explicit backgrounds)
             self.apply_styles_to_widgets(self.main_frame, archive=False)
         
-        # Also apply to expense list frame if it exists
+        # Also apply to expense list frame if it exists - Simplified
         if self.expense_list_frame:
-            # Check if it's a CustomTkinter widget or ttk widget
-            # Use both isinstance and hasattr for robust detection
-            is_ctk_frame = isinstance(self.expense_list_frame, ctk.CTkFrame) or hasattr(self.expense_list_frame, 'fg_color')
-            if is_ctk_frame:
-                # CustomTkinter: use fg_color
+            if isinstance(self.expense_list_frame, ctk.CTkFrame) or hasattr(self.expense_list_frame, 'fg_color'):
                 try:
-                    self.expense_list_frame.configure(fg_color=config.Colors.BG_LIGHT_GRAY)
-                except Exception as e:
-                    from error_logger import log_error
-                    log_error(f"Error configuring expense_list_frame fg_color: {e}", e)
+                    self.expense_list_frame.configure(fg_color=frame_bg)
+                except Exception:
+                    pass
             else:
-                # ttk widget: use style
                 try:
                     self.expense_list_frame.configure(style='TFrame')
-                except Exception as e:
-                    from error_logger import log_error
-                    log_error(f"Error configuring expense_list_frame style: {e}", e)
+                except Exception:
+                    pass
+            # Apply styles to all widgets
             self.apply_styles_to_widgets(self.expense_list_frame, archive=False)
         
-        # Month title: Update text and styling for CustomTkinter widget
+        # Month title: Update text
         if self.month_label:
-            # Update month label text with formatted display
             self.month_label.configure(text=month_display_text)
-            # Keep month label transparent (inherits background from parent frame)
-            # The parent frame will have the normal background
         
-        # Apply normal styling to CustomTkinter widgets in main frame
+        # Apply normal styling to CustomTkinter widgets
         if self.main_frame:
             self.apply_customtkinter_styles(self.main_frame, archive=False)
+        if self.expense_list_frame:
+            self.apply_customtkinter_styles(self.expense_list_frame, archive=False)
+        
+        # Apply styles to ttk widgets
+        if self.main_frame:
+            self.apply_styles_to_widgets(self.main_frame, archive=False)
+        if self.expense_list_frame:
+            self.apply_styles_to_widgets(self.expense_list_frame, archive=False)
+        
+        # Note: Final style refresh happens in refresh_ui() AFTER update_display() runs
         
         # Enable "+ Add Expense" button
         if self.add_expense_btn:
@@ -383,24 +436,62 @@ class ArchiveModeManager:
         for widget in parent.winfo_children():
             widget_class = widget.winfo_class()
             
-            # Update ttk.Label widgets
+            # Update ttk.Label widgets - Simplified and more reliable
             if widget_class == 'TLabel':
-                current_style = str(widget.cget('style'))
-                # Strip any existing 'Archive.' prefix
-                base_style = current_style.replace('Archive.', '')
-                
-                if base_style:
-                    # Has a specific style (Title.TLabel, etc.) - add/remove Archive prefix
-                    new_style = f"{prefix}{base_style}"
+                # Get target background color based on mode
+                if archive:
+                    target_bg = self.theme_manager.get_archive_tint() if self.theme_manager else config.Colors.BG_ARCHIVE_TINT
                 else:
-                    # No specific style - use default TLabel style
-                    new_style = 'Archive.TLabel' if archive else 'TLabel'
+                    theme_colors = self.theme_manager.get_colors() if self.theme_manager else config.Colors
+                    is_dark = self.theme_manager.is_dark_mode() if self.theme_manager else False
+                    target_bg = theme_colors.BG_SECONDARY if is_dark else config.Colors.BG_LIGHT_GRAY
                 
-                widget.configure(style=new_style)
+                # Always update explicit background colors (simplified approach)
+                # Try to update background directly - works for labels with explicit backgrounds
+                try:
+                    widget.configure(background=target_bg)
+                except (tk.TclError, AttributeError):
+                    # Label doesn't support direct background config, continue to style update
+                    pass
+                
+                # Also update style for labels that use styles
+                try:
+                    current_style = str(widget.cget('style'))
+                    # Strip any existing 'Archive.' prefix
+                    base_style = current_style.replace('Archive.', '')
+                    
+                    if base_style:
+                        # Has a specific style (Title.TLabel, etc.) - add/remove Archive prefix
+                        new_style = f"{prefix}{base_style}"
+                    else:
+                        # No specific style - use default TLabel style
+                        new_style = 'Archive.TLabel' if archive else 'TLabel'
+                    
+                    widget.configure(style=new_style)
+                except (tk.TclError, AttributeError):
+                    # Style update failed, continue
+                    pass
             
             # Update ttk.Frame widgets
             elif widget_class == 'TFrame':
-                widget.configure(style=f'{prefix}TFrame')
+                # Check if widget has a custom style (like Analytics.TFrame, Progress.TFrame)
+                try:
+                    current_style = str(widget.cget('style'))
+                    # Strip any existing 'Archive.' prefix
+                    base_style = current_style.replace('Archive.', '')
+                    
+                    # If it's a custom style (Analytics.TFrame, Progress.TFrame, Expenses.TFrame, Metrics.TFrame, StatusBar.TFrame), preserve it
+                    if base_style in ['Analytics.TFrame', 'Progress.TFrame', 'Expenses.TFrame', 'Metrics.TFrame', 'StatusBar.TFrame']:
+                        new_style = f'{prefix}{base_style}'
+                    else:
+                        # Default TFrame style
+                        new_style = f'{prefix}TFrame'
+                    
+                    widget.configure(style=new_style)
+                except (tk.TclError, AttributeError):
+                    # Fallback to default style if we can't read current style
+                    widget.configure(style=f'{prefix}TFrame')
+                
                 # Recursively update children
                 self.apply_styles_to_widgets(widget, archive)
             
@@ -410,8 +501,52 @@ class ArchiveModeManager:
                 # Recursively update children
                 self.apply_styles_to_widgets(widget, archive)
             
+            # Update tk.Frame widgets (regular Frame, not ttk.Frame)
+            elif widget_class == 'Frame':
+                # Check if this is the status bar frame (has status_label as child)
+                is_status_frame = False
+                try:
+                    for child in widget.winfo_children():
+                        if hasattr(child, 'winfo_class') and child.winfo_class() == 'TLabel':
+                            # Check if it's the status label by checking if it has specific text patterns
+                            try:
+                                text = str(child.cget('text'))
+                                if 'expenses' in text.lower() or text == 'No expenses':
+                                    is_status_frame = True
+                                    break
+                            except:
+                                pass
+                except:
+                    pass
+                
+                # Only update status bar frames - preserve their dark gray background
+                if is_status_frame:
+                    # Get theme-aware status bar background color
+                    if self.theme_manager:
+                        is_dark = self.theme_manager.is_dark_mode()
+                        if is_dark:
+                            status_bg = self.theme_manager.get_colors().BG_TERTIARY  # #2d2d30 (darker gray for status bar)
+                        else:
+                            status_bg = config.Colors.BG_LIGHT_GRAY  # #e5e5e5
+                    else:
+                        status_bg = config.Colors.BG_LIGHT_GRAY
+                    
+                    try:
+                        widget.configure(bg=status_bg)
+                        widget.update_idletasks()  # Force update
+                    except (tk.TclError, AttributeError):
+                        pass
+                
+                # Recursively check children
+                self.apply_styles_to_widgets(widget, archive)
+            
+            # Update CTkFrame widgets (CustomTkinter frames)
+            elif widget_class == 'CTkFrame':
+                # Recursively check children (CTkFrame styling handled by apply_customtkinter_styles)
+                self.apply_styles_to_widgets(widget, archive)
+            
             # Recursively check other containers
-            elif widget_class in ['Frame', 'Labelframe']:
+            elif widget_class in ['Labelframe']:
                 self.apply_styles_to_widgets(widget, archive)
     
     def apply_customtkinter_styles(self, parent, archive=True):
@@ -422,7 +557,17 @@ class ArchiveModeManager:
             parent: Parent widget to start from
             archive: True to apply archive styles, False for normal styles
         """
-        bg_color = config.Colors.BG_ARCHIVE_TINT if archive else config.Colors.BG_LIGHT_GRAY
+        # Use theme-aware colors
+        if self.theme_manager:
+            colors = self.theme_manager.get_colors()
+            if archive:
+                bg_color = self.theme_manager.get_archive_tint()
+            else:
+                # Normal mode: use BG_LIGHT_GRAY (light) or BG_SECONDARY (dark)
+                bg_color = colors.BG_SECONDARY if self.theme_manager.is_dark_mode() else colors.BG_LIGHT_GRAY
+        else:
+            # Fallback to config colors if theme_manager not available
+            bg_color = config.Colors.BG_ARCHIVE_TINT if archive else config.Colors.BG_LIGHT_GRAY
         
         try:
             children = parent.winfo_children()
@@ -438,9 +583,22 @@ class ArchiveModeManager:
                         current_fg = widget.cget('fg_color')
                         # Update labels that use standard background colors
                         # Keep transparent labels transparent (they inherit from parent)
-                        if current_fg == config.Colors.BG_LIGHT_GRAY or current_fg == config.Colors.BG_ARCHIVE_TINT:
+                        # Check against both light and dark mode colors
+                        theme_colors = self.theme_manager.get_colors() if self.theme_manager else config.Colors
+                        light_bg = config.Colors.BG_LIGHT_GRAY
+                        dark_bg = theme_colors.BG_SECONDARY if self.theme_manager and self.theme_manager.is_dark_mode() else None
+                        dark_bg_alt = theme_colors.BG_LIGHT_GRAY if self.theme_manager and self.theme_manager.is_dark_mode() else None  # BG_LIGHT_GRAY in dark mode is #2d2d30
+                        light_archive = config.Colors.BG_ARCHIVE_TINT
+                        dark_archive = self.theme_manager.get_archive_tint() if self.theme_manager else None
+                        
+                        # Update if label matches any standard background color (skip transparent)
+                        if (current_fg == light_bg or current_fg == light_archive or 
+                            (dark_bg and current_fg == dark_bg) or 
+                            (dark_bg_alt and current_fg == dark_bg_alt) or  # Also catch BG_LIGHT_GRAY in dark mode
+                            (dark_archive and current_fg == dark_archive)):
+                            # Update to new background color
                             widget.configure(fg_color=bg_color)
-                        # For transparent labels, leave them transparent (parent provides background)
+                        # Skip transparent labels - they inherit from parent
                     except (tk.TclError, AttributeError, RuntimeError):
                         # Widget might be destroyed or not fully initialized
                         pass
@@ -448,11 +606,47 @@ class ArchiveModeManager:
                 # Update CTkFrame widgets
                 elif isinstance(widget, ctk.CTkFrame):
                     try:
+                        # Check if this is the status bar frame (has status_label as child)
+                        is_status_frame = False
+                        try:
+                            for child in widget.winfo_children():
+                                if hasattr(child, 'winfo_class') and child.winfo_class() == 'TLabel':
+                                    # Check if it's the status label by checking if it has specific text patterns
+                                    try:
+                                        text = str(child.cget('text'))
+                                        if 'expenses' in text.lower() or text == 'No expenses':
+                                            is_status_frame = True
+                                            break
+                                    except:
+                                        pass
+                        except:
+                            pass
+                        
+                        # Skip status bar frames - they have their own color management
+                        if is_status_frame:
+                            # Recursively check children but don't modify status bar frame itself
+                            self.apply_customtkinter_styles(widget, archive)
+                            continue
+                        
                         current_fg = widget.cget('fg_color')
-                        # Update frames that use standard background colors
-                        if current_fg == config.Colors.BG_LIGHT_GRAY or current_fg == config.Colors.BG_ARCHIVE_TINT:
+                        # Update ALL frames that aren't transparent (more aggressive update for proper refresh)
+                        # Check against both light and dark mode colors, and archive colors
+                        theme_colors = self.theme_manager.get_colors() if self.theme_manager else config.Colors
+                        light_bg = config.Colors.BG_LIGHT_GRAY
+                        dark_bg = theme_colors.BG_SECONDARY if self.theme_manager and self.theme_manager.is_dark_mode() else None
+                        dark_bg_alt = theme_colors.BG_LIGHT_GRAY if self.theme_manager and self.theme_manager.is_dark_mode() else None  # BG_LIGHT_GRAY in dark mode is #2d2d30
+                        light_archive = config.Colors.BG_ARCHIVE_TINT
+                        dark_archive = self.theme_manager.get_archive_tint() if self.theme_manager else None
+                        
+                        # Update if frame matches any standard background color OR if it's not transparent
+                        # This ensures all frames get updated when switching modes
+                        if (current_fg == light_bg or current_fg == light_archive or 
+                            (dark_bg and current_fg == dark_bg) or 
+                            (dark_bg_alt and current_fg == dark_bg_alt) or  # Also catch BG_LIGHT_GRAY in dark mode
+                            (dark_archive and current_fg == dark_archive)):
+                            # Update to new background color
                             widget.configure(fg_color=bg_color)
-                        # Keep transparent frames transparent
+                        # Skip transparent frames - they inherit from parent
                     except (tk.TclError, AttributeError, RuntimeError):
                         # Widget might be destroyed or not fully initialized
                         pass
@@ -466,4 +660,51 @@ class ArchiveModeManager:
             except (tk.TclError, AttributeError, RuntimeError):
                 # Widget might be destroyed during iteration
                 continue
+    
+    def _update_ttk_styles(self, archive=False):
+        """
+        Update ttk.Style configurations when switching modes.
+        This ensures styles like 'Analytics.TFrame' and 'Progress.TFrame' are updated.
+        
+        Args:
+            archive: True to apply archive styles, False for normal styles
+        """
+        try:
+            from tkinter import ttk
+            style = ttk.Style()
+            
+            # Get theme-aware colors
+            if self.theme_manager:
+                colors = self.theme_manager.get_colors()
+                is_dark = self.theme_manager.is_dark_mode()
+                if archive:
+                    frame_bg = self.theme_manager.get_archive_tint()
+                else:
+                    frame_bg = colors.BG_SECONDARY if is_dark else colors.BG_LIGHT_GRAY
+            else:
+                frame_bg = config.Colors.BG_ARCHIVE_TINT if archive else config.Colors.BG_LIGHT_GRAY
+            
+            # Update custom frame styles used in dashboard
+            prefix = 'Archive.' if archive else ''
+            
+            # Analytics.TFrame - used in analytics section
+            style.configure(f'{prefix}Analytics.TFrame', background=frame_bg)
+            
+            # Progress.TFrame - used in progress section
+            style.configure(f'{prefix}Progress.TFrame', background=frame_bg)
+            
+            # Expenses.TFrame - used in recent expenses section
+            style.configure(f'{prefix}Expenses.TFrame', background=frame_bg)
+            
+            # Metrics.TFrame - used in expense insights section
+            style.configure(f'{prefix}Metrics.TFrame', background=frame_bg)
+            
+            # StatusBar.TFrame - used in expense table status bar
+            # Use BG_TERTIARY in dark mode for gray status bar, BG_LIGHT_GRAY in light mode
+            status_bg = colors.BG_TERTIARY if is_dark else config.Colors.BG_LIGHT_GRAY
+            style.configure(f'{prefix}StatusBar.TFrame', background=status_bg)
+            
+        except Exception:
+            # Style update failed, continue
+            pass
 

@@ -1,5 +1,51 @@
 # LiteFinPad Changelog
 
+## 🚀 Version 3.6.1 - Dark Mode (Experimental) - November 9, 2025
+
+### **Summary**
+v3.6.1 introduces **Dark Mode (Experimental)** - a modern dark theme for reduced eye strain with full theme awareness across all UI components. This version also includes comprehensive documentation updates for the `settings.ini` configuration file, making it easier for users to customize the application.
+
+**Development Status:**
+- 🌙 Dark Mode Feature Complete (November 9, 2025)
+- 📚 Settings documentation added
+- 📦 Built on stable v3.6 foundation
+
+---
+
+### ✨ **New Features**
+
+#### **Dark Mode (Experimental)** 🌙 NEW
+- **Added**: Experimental dark mode theme for reduced eye strain
+  - Modern dark color scheme with carefully selected contrast ratios
+  - Fully theme-aware throughout the application (dialogs, tables, buttons, status bars)
+  - Enable/disable via `settings.ini` file (`[Theme] dark_mode = true/false`)
+  - Works seamlessly with Archive Mode
+  - Consistent styling across all UI components:
+    - Dashboard analytics boxes with subtle borders
+    - Expense table with grayish navy blue background
+    - Dialog windows with theme-aware backgrounds and text colors
+    - Status bars and pagination controls
+    - Quick Add inline and system tray dialogs
+  - **Settings**: Configure via `settings.ini` [Theme] section
+    - `dark_mode`: Set to `true` to enable dark theme, `false` for light theme
+    - Changes take effect after restarting the application
+  - **Note**: This is an experimental feature and may be refined in future versions
+
+#### **Settings.ini Documentation** 📚 NEW
+- **Added**: Comprehensive documentation for `settings.ini` configuration file
+  - Full documentation in README.md Configuration section
+  - All available settings documented with examples
+  - Instructions for editing and backing up settings
+  - Settings categories:
+    - Theme Settings (Dark Mode)
+    - Budget Settings
+    - Table Settings
+    - Export Settings
+    - Logging Settings
+    - AutoComplete Settings (Advanced)
+
+---
+
 ## 🚀 Version 3.6 - Budget Threshold & Visual Refinements - October 27 - November 2, 2025
 
 ### **Summary**

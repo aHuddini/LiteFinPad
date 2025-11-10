@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-LiteFinPad v3.6 PyInstaller Spec File
-Includes all modules, dependencies, and recent refactoring changes.
+LiteFinPad v3.6.1 PyInstaller Spec File
+Includes all modules, dependencies, dark mode theme support, and recent refactoring changes.
 """
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
@@ -99,7 +99,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='LiteFinPad_v3.6',
+    name='LiteFinPad_v3.6.1',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -120,5 +120,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='LiteFinPad_v3.6',
+    name='LiteFinPad_v3.6.1',
 )
