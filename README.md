@@ -21,15 +21,15 @@ Twitter: [@Huddini_2k](https://x.com/Huddini_2k)
 
 Hello World! I'm a beginner to software development and dabbling in the AI-enhanced tech world when I have time to take breaks from my full-time career. 
 
-This is my first "microapp" project vibe-coded with the help of Cursor AI (using Claude Sonnet 4 as my primary model of choice). The development framework is a combination of Python (business logic), Tkinter (GUI) & CustomTkinter (GUI).
+This is my first "microapp" project vibe-coded with the help of Cursor AI (using Claude Sonnet 4 as my primary coding model). The development framework is a combination of Python (business logic), Tkinter (GUI) & CustomTkinter (GUI).
 
-Inspired to think more seriously about my spending habits from watching Caleb Hammer's Financial Audit YouTube series, I built it for my own personal use to solve a need to quickly keep track of large, monthly expenses (without trying to manage finances on my phone). While it wasn't a one-shot app, I've been learning a lot about software development and how hard it actually is to build software (despite having powerful AI tools to assist me)... I don't know how developers did it before AI tools were a thing. 
+Inspired to think more seriously about my spending habits from watching Caleb Hammer's Financial Audit YouTube series, I built it for my own personal use to solve a need to quickly keep track of large, monthly expenses. While it wasn't a one-shot app, I've been learning a lot about software development and how hard it actually is to build software (despite having powerful AI tools to assist me). 
 
-I don't know if it will work for everyone else's machines, but I felt my project was stable enough for daily use to release and open source it out for the public.
+I felt my project was stable enough for daily use to release and open source it out for the public.
 
 Check my Beginner_Thoughts.md file for how my AI-assisted development's journey been if you're curious :).
 
-Feedback to improve is welcome!
+Thanks for checking out this repo! Feedback is welcome!
 
 ## Overview
 
